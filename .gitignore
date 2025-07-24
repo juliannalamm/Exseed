@@ -1,1 +1,23 @@
 2025-07-23+-+Data+for+Julianna/
+combined_views_tracks/
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.venv/
+env/
+.env/
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
