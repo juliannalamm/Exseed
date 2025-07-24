@@ -3,7 +3,7 @@ import os
 import json
 
 project_root = os.path.dirname(__file__)  
-data_dir = "2025-07-23+-+Data+for+Julianna"
+data_dir = os.path.join(project_root, "2025-07-23+-+Data+for+Julianna")
 output_dir = os.path.join(project_root, "combined_views_tracks")
 os.makedirs(output_dir, exist_ok=True)
 
@@ -32,7 +32,11 @@ single_view = set(single_view) #speed up
 for video_id in video_views: 
     if video_id not in single_view: 
         # Handle videos with both views
-        combined_json_data = []
+        combined_json_data = {
+            "Framerate (FPS)" : None,
+            "Tracks":[],
+            "um per Pixel": None
+        }
         for view in ["1", "2"]:
             folder_name = f"{video_id} - View {view}"
             folder_path = os.path.join(data_dir, folder_name)
@@ -46,13 +50,19 @@ for video_id in video_views:
                     try: 
                         with open(file_path, "r") as f: 
                             data = json.load(f)
-                            if isinstance(data, list):
-                                combined_json_data.extend(data)
-                            else: 
-                                combined_json_data.append(data)
-                    except Exception as e:
+                            
+                            #append all tracks 
+                            if "Tracks" in data: 
+                                combined_json_data["Tracks"].extend(data["Tracks"])
+                            #set framerate if not specified
+                            if combined_json_data["Framerate (FPS)"] is None:
+                                combined_json_data["Framerate (FPS)"] = data.get("Framerate (FPS)") #retrieves the float
+                                
+                            if combined_json_data["um per Pixel"] is None: 
+                                combined_json_data["um per Pixel"] = data.get("um per Pixel")
+                    except Exception as e: 
                         print(f"Error reading {file_path}: {e}")
-
+                        
         output_path = os.path.join(output_dir, f"{video_id}_combined.json")
         with open(output_path, "w") as out_f:
             json.dump(combined_json_data, out_f, indent=2)
