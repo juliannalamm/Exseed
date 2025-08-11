@@ -10,6 +10,7 @@ from full_pipeline import (
     overlay_trajectories_on_video,
     MODEL_PATH
 )
+from global_umap_utils import get_global_umap_comparison
 import subprocess
 
 
@@ -109,90 +110,120 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     st.success(f"✅ Analysis complete for {participant_id}")
     
     # =====================
-    # 🔹 UMAP Interactive Plot
+    # 🔹 Tabbed Analysis Interface
     # =====================
-    st.subheader("📊 Interactive UMAP Clustering")
+    tab1, tab2 = st.tabs(["🌍 Global Comparison", "📊 Individual Analysis"])
     
-    # Debug information
-    with st.expander("🔍 Debug Info"):
-        st.write(f"**Data shape:** {preds.shape}")
-        st.write(f"**Columns:** {list(preds.columns)}")
-        st.write(f"**Has umap_1:** {'umap_1' in preds.columns}")
-        st.write(f"**Has umap_2:** {'umap_2' in preds.columns}")
-        if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
-            st.write(f"**UMAP 1 range:** {preds['umap_1'].min():.3f} to {preds['umap_1'].max():.3f}")
-            st.write(f"**UMAP 2 range:** {preds['umap_2'].min():.3f} to {preds['umap_2'].max():.3f}")
-            st.write(f"**Number of points:** {len(preds)}")
-            st.write(f"**Unique clusters:** {sorted(preds['cluster_id'].unique())}")
-    
-    if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
-        # Check if we have meaningful UMAP coordinates
-        umap_range_1 = preds['umap_1'].max() - preds['umap_1'].min()
-        umap_range_2 = preds['umap_2'].max() - preds['umap_2'].min()
+    with tab1:
+        st.subheader("🌍 Global UMAP Comparison")
         
-        if umap_range_1 > 0.1 and umap_range_2 > 0.1:
-            # Create the scatter plot
-            fig = px.scatter(
-                preds,
-                x='umap_1',
-                y='umap_2',
-                color='subtype_label' if 'subtype_label' in preds else 'cluster_id',
-                hover_data=['track_id'],
-                title="UMAP Projection",
-                width=800,
-                height=600
+        # Create global UMAP plot with training data
+        with st.spinner("Creating global UMAP comparison..."):
+            global_fig, comparison_stats = get_global_umap_comparison(preds)
+            
+            if comparison_stats:
+                st.plotly_chart(global_fig, use_container_width=True)
+                
+                # Show comparison statistics
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**📊 Training Data Distribution**")
+                    st.dataframe(comparison_stats['training_distribution'])
+                with col2:
+                    st.markdown("**📊 New Data Distribution**")
+                    st.dataframe(comparison_stats['new_data_distribution'])
+                
+                st.info("💡 **Global UMAP Plot**: Training data points (small, transparent) show the overall clustering pattern. Your new data points (large, outlined) show where your participant's sperm tracks fall within the global context.")
+            else:
+                st.plotly_chart(global_fig, use_container_width=True)
+                st.warning("⚠️ Could not load training data. Showing new data only.")
+    
+    with tab2:
+        st.subheader("📊 Individual Analysis")
+        
+        # Create two columns
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 New Data UMAP**")
+            
+            # Debug information
+            with st.expander("🔍 Debug Info"):
+                st.write(f"**Data shape:** {preds.shape}")
+                st.write(f"**Columns:** {list(preds.columns)}")
+                st.write(f"**Has umap_1:** {'umap_1' in preds.columns}")
+                st.write(f"**Has umap_2:** {'umap_2' in preds.columns}")
+                if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
+                    st.write(f"**UMAP 1 range:** {preds['umap_1'].min():.3f} to {preds['umap_1'].max():.3f}")
+                    st.write(f"**UMAP 2 range:** {preds['umap_2'].min():.3f} to {preds['umap_2'].max():.3f}")
+                    st.write(f"**Number of points:** {len(preds)}")
+                    st.write(f"**Unique clusters:** {sorted(preds['cluster_id'].unique())}")
+            
+            if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
+                # Check if we have meaningful UMAP coordinates
+                umap_range_1 = preds['umap_1'].max() - preds['umap_1'].min()
+                umap_range_2 = preds['umap_2'].max() - preds['umap_2'].min()
+                
+                if umap_range_1 > 0.1 and umap_range_2 > 0.1:
+                    # Create the scatter plot
+                    fig = px.scatter(
+                        preds,
+                        x='umap_1',
+                        y='umap_2',
+                        color='subtype_label' if 'subtype_label' in preds else 'cluster_id',
+                        hover_data=['track_id'],
+                        title="New Data UMAP",
+                        width=400,
+                        height=400
+                    )
+                    
+                    # Display the plot
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Add a note about the plot
+                    st.info("💡 New data clustering pattern.")
+                else:
+                    st.error(f"UMAP coordinates are too compressed (ranges: {umap_range_1:.3f}, {umap_range_2:.3f}).")
+            else:
+                st.warning("UMAP coordinates not available.")
+        
+        with col2:
+            st.markdown("**🎯 Track Trajectory Viewer**")
+            
+            # Create a dropdown for track selection
+            available_tracks = sorted(preds['track_id'].unique())
+            selected_track = st.selectbox(
+                "Select a track:",
+                available_tracks,
+                format_func=lambda x: f"{x} ({preds[preds['track_id']==x]['subtype_label'].iloc[0]})"
             )
             
-            # Display the plot using st.plotly_chart instead of plotly_events
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Add a note about the plot
-            st.info("💡 The UMAP plot shows sperm tracks clustered by motility patterns. Each point represents a sperm track, colored by its predicted motility subtype.")
-        else:
-            st.error(f"UMAP coordinates are too compressed (ranges: {umap_range_1:.3f}, {umap_range_2:.3f}). This indicates an issue with the UMAP model.")
-    else:
-        st.warning("UMAP coordinates not available. Check if the model contains a UMAP model and if include_umap=True.")
-
-    # =====================
-    # 🔹 Show Trajectory for Selected Track
-    # =====================
-    st.subheader("🎯 Track Trajectory Viewer")
-    
-    # Create a dropdown for track selection
-    available_tracks = sorted(preds['track_id'].unique())
-    selected_track = st.selectbox(
-        "Select a track to view its trajectory:",
-        available_tracks,
-        format_func=lambda x: f"{x} ({preds[preds['track_id']==x]['subtype_label'].iloc[0]})"
-    )
-    
-    if selected_track:
-        st.success(f"🧬 Selected Track: `{selected_track}`")
-        
-        traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
-        if not traj_df.empty:
-            fig_traj = px.line(
-                traj_df,
-                x='x',
-                y='y',
-                title=f'Sperm Trajectory for {selected_track}',
-                markers=True,
-                width=700,
-                height=500
-            )
-            st.plotly_chart(fig_traj, use_container_width=True)
-            
-            # Show track statistics
-            track_stats = preds[preds['track_id'] == selected_track].iloc[0]
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Subtype", track_stats['subtype_label'])
-            with col2:
-                st.metric("Cluster ID", track_stats['cluster_id'])
-            with col3:
-                st.metric("Track Length", f"{len(traj_df)} frames")
-        else:
-            st.warning("No trajectory data found for that track.")
+            if selected_track:
+                st.success(f"🧬 Selected: `{selected_track}`")
+                
+                traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
+                if not traj_df.empty:
+                    fig_traj = px.line(
+                        traj_df,
+                        x='x',
+                        y='y',
+                        title=f'Trajectory: {selected_track}',
+                        markers=True,
+                        width=400,
+                        height=400
+                    )
+                    st.plotly_chart(fig_traj, use_container_width=True)
+                    
+                    # Show track statistics in a more compact format
+                    track_stats = preds[preds['track_id'] == selected_track].iloc[0]
+                    st.markdown(f"""
+                    **Track Info:**
+                    - **Subtype:** {track_stats['subtype_label']}
+                    - **Cluster:** {track_stats['cluster_id']}
+                    - **Frames:** {len(traj_df)}
+                    """)
+                else:
+                    st.warning("No trajectory data found.")
 
     # =====================
     # 🔹 Show Cluster Counts
