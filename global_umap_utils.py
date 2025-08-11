@@ -186,6 +186,8 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
                 highlight_ids = training_data.loc[
                     training_data['track_id'].str.startswith(f"{participant_id}_"), 'track_id'
                 ].unique().tolist()
+                # print(f"Debug: Looking for tracks starting with '{participant_id}_'")
+                # print(f"Debug: Sample track IDs in training data: {training_data['track_id'].head().tolist()}")
             
             print(f"Found {len(highlight_ids)} tracks for participant {participant_id}: {highlight_ids[:5]}...")
         
@@ -194,17 +196,39 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
         
         # Calculate summary statistics
         training_summary = training_data['subtype_label'].value_counts()
-        new_summary = new_data_df['subtype_label'].value_counts()
+        
+        # If new_data_df is provided, use it; otherwise, calculate from highlighted participant
+        if new_data_df is not None and len(new_data_df) > 0:
+            new_summary = new_data_df['subtype_label'].value_counts()
+            new_data_total = len(new_data_df)
+        else:
+            # Calculate distribution from the highlighted participant's tracks in training data
+            if highlight_ids and len(highlight_ids) > 0:
+                participant_data = training_data[training_data['track_id'].isin(highlight_ids)]
+                new_summary = participant_data['subtype_label'].value_counts()
+                new_data_total = len(participant_data)
+                print(f"Debug: Found {len(participant_data)} tracks for {participant_id}")
+                print(f"Debug: Track IDs: {participant_data['track_id'].tolist()}")
+                print(f"Debug: Subtype distribution: {new_summary.to_dict()}")
+            else:
+                # No participant selected or no tracks found
+                new_summary = pd.Series(dtype='object')
+                new_data_total = 0
+                print(f"Debug: No tracks found for participant {participant_id}")
+                print(f"Debug: Available participant IDs: {training_data['participant_id'].unique() if 'participant_id' in training_data.columns else 'No participant_id column'}")
         
         comparison_stats = {
             'training_distribution': training_summary,
             'new_data_distribution': new_summary,
             'training_total': len(training_data),
-            'new_data_total': len(new_data_df)
+            'new_data_total': new_data_total
         }
         
         return global_fig, comparison_stats
     else:
         # Fallback to new data only
-        fig = create_new_data_only_plot(new_data_df)
+        if new_data_df is not None:
+            fig = create_new_data_only_plot(new_data_df)
+        else:
+            fig = go.Figure()
         return fig, None 
