@@ -19,37 +19,50 @@ def load_or_create_training_umap_data():
     Load real training data with UMAP coordinates.
     Returns training data with UMAP coordinates.
     """
-    # Check if we have the real training data file
-    training_cache_file = "training_data_with_umap.pkl"
+    # Preferred source: CSV provided by the user
+    csv_path = "train_track_df.csv"
+    if os.path.exists(csv_path):
+        print("Loading training data with UMAP coordinates from train_track_df.csv...")
+        training_data = pd.read_csv(csv_path)
+        # Ensure required columns
+        required_cols = {'umap_1','umap_2','cluster_id','subtype_label','track_id'}
+        missing = required_cols - set(training_data.columns)
+        if missing:
+            print(f"Warning: train_track_df.csv missing columns: {missing}. Global plot may be limited.")
+        # Derive participant_id if missing and track_id format allows
+        if 'participant_id' not in training_data.columns and 'track_id' in training_data.columns:
+            try:
+                training_data['participant_id'] = training_data['track_id'].str.split('_track_').str[0]
+            except Exception:
+                pass
+        return training_data
     
+    # Legacy fallback: cached pickle
+    training_cache_file = "training_data_with_umap.pkl"
     if os.path.exists(training_cache_file):
-        print("Loading real training data with UMAP coordinates...")
+        print("Loading real training data with UMAP coordinates from pickle...")
         with open(training_cache_file, 'rb') as f:
             training_data = pickle.load(f)
         return training_data
     
-    # If no real training data, try to create it
-    print("Real training data not found. Please run extract_training_data.py first.")
-    print("This will extract the real training data from your combined_views_tracks directory.")
+    print("Training data file not found. Expected train_track_df.csv in project root.")
     return None
 
-def create_global_umap_plot(new_data_df, training_data_df=None):
+def create_global_umap_plot(training_data_df, highlight_track_ids=None):
     """
-    Create a global UMAP plot showing training data with highlighted new data points.
+    Create a global UMAP plot showing training data with optional highlighted points
+    belonging to a specific participant or a provided set of track_ids.
     
     Args:
-        new_data_df: DataFrame with new participant data (must have umap_1, umap_2, cluster_id, subtype_label)
-        training_data_df: DataFrame with training data (if None, will be loaded/created)
+        training_data_df: DataFrame with training data (must have umap_1, umap_2, cluster_id, subtype_label)
+        highlight_track_ids: Optional set/list of track_ids to highlight on the map
     
     Returns:
         plotly figure object
     """
-    if training_data_df is None:
-        training_data_df = load_or_create_training_umap_data()
-    
-    if training_data_df is None:
-        print("Could not load training data. Creating plot with new data only.")
-        return create_new_data_only_plot(new_data_df)
+    if training_data_df is None or training_data_df.empty:
+        print("Could not load training data. Cannot create global plot.")
+        return go.Figure()
     
     # Create the plot
     fig = go.Figure()
@@ -73,8 +86,8 @@ def create_global_umap_plot(new_data_df, training_data_df=None):
             mode='markers',
             marker=dict(
                 size=4,
-                color=cluster_colors[cluster_id],
-                opacity=0.3
+                color=cluster_colors.get(cluster_id, '#888'),
+                opacity=0.8
             ),
             name=f'Training: {subtype}',
             showlegend=True,
@@ -85,42 +98,46 @@ def create_global_umap_plot(new_data_df, training_data_df=None):
             customdata=cluster_data['cluster_id']
         ))
     
-    # Add new data points (larger, more prominent)
-    for cluster_id in sorted(new_data_df['cluster_id'].unique()):
-        cluster_data = new_data_df[new_data_df['cluster_id'] == cluster_id]
-        subtype = cluster_data['subtype_label'].iloc[0]
-        
-        fig.add_trace(go.Scatter(
-            x=cluster_data['umap_1'],
-            y=cluster_data['umap_2'],
-            mode='markers',
-            marker=dict(
-                size=8,
-                color=cluster_colors[cluster_id],
-                opacity=0.8,
-                line=dict(color='black', width=1)
-            ),
-            name=f'New: {subtype}',
-            showlegend=True,
-            hovertemplate='<b>New Data</b><br>' +
-                         'Track: %{text}<br>' +
-                         f'Subtype: {subtype}<br>' +
-                         'Cluster: %{customdata}<br>' +
-                         '<extra></extra>',
-            text=cluster_data['track_id'],
-            customdata=cluster_data['cluster_id']
-        ))
+    # Highlight specific tracks, if provided
+    if highlight_track_ids:
+        highlight_set = set(highlight_track_ids)
+        highlight_df = training_data_df[training_data_df['track_id'].isin(highlight_set)]
+        if not highlight_df.empty:
+            for cluster_id in sorted(highlight_df['cluster_id'].unique()):
+                sub = highlight_df[highlight_df['cluster_id'] == cluster_id]
+                subtype = sub['subtype_label'].iloc[0]
+                fig.add_trace(go.Scatter(
+                    x=sub['umap_1'],
+                    y=sub['umap_2'],
+                    mode='markers',
+                    marker=dict(
+                        size=25,
+                        color=cluster_colors.get(cluster_id, '#444'),
+                        opacity=1.0,
+                        line=dict(color='red', width=5),
+                        symbol='diamond'
+                    ),
+                    name=f'Your Participant: {subtype}',
+                    showlegend=True,
+                    hovertemplate='<b>Your Participant</b><br>' +
+                                 'Track: %{text}<br>' +
+                                 f'Subtype: {subtype}<br>' +
+                                 'Cluster: %{customdata}<br>' +
+                                 '<extra></extra>',
+                    text=sub['track_id'],
+                    customdata=sub['cluster_id']
+                ))
     
     # Update layout
     fig.update_layout(
-        title="Global UMAP: Training Data + New Participant",
+        title="Global UMAP: Training Data (highlighted tracks in black outline)",
         xaxis_title="UMAP 1",
         yaxis_title="UMAP 2",
         width=800,
         height=600,
         legend=dict(
-            yanchor="top",
-            y=0.99,
+            yanchor="bottom",
+            y=0,
             xanchor="left",
             x=0.01
         )
@@ -145,16 +162,35 @@ def create_new_data_only_plot(new_data_df):
     
     return fig
 
-def get_global_umap_comparison(new_data_df):
+def get_global_umap_comparison(new_data_df, participant_id=None):
     """
     Main function to get global UMAP comparison.
     Returns both the global plot and summary statistics.
+    If participant_id is provided, we highlight the training points that match the
+    `track_id`s of this participant in the cached training dataframe.
     """
     training_data = load_or_create_training_umap_data()
     
     if training_data is not None:
-        # Create global plot
-        global_fig = create_global_umap_plot(new_data_df, training_data)
+        highlight_ids = None
+        if participant_id is not None:
+            # Find tracks in training data that belong to this participant
+            # Training track_ids are stored as e.g., "<participant>_track_<n>"
+            if 'participant_id' in training_data.columns:
+                # Direct match if participant_id column exists
+                highlight_ids = training_data.loc[
+                    training_data['participant_id'] == participant_id, 'track_id'
+                ].unique().tolist()
+            elif 'track_id' in training_data.columns:
+                # Extract participant from track_id if participant_id column doesn't exist
+                highlight_ids = training_data.loc[
+                    training_data['track_id'].str.startswith(f"{participant_id}_"), 'track_id'
+                ].unique().tolist()
+            
+            print(f"Found {len(highlight_ids)} tracks for participant {participant_id}: {highlight_ids[:5]}...")
+        
+        # Create global plot, highlighting matching training points
+        global_fig = create_global_umap_plot(training_data, highlight_track_ids=highlight_ids)
         
         # Calculate summary statistics
         training_summary = training_data['subtype_label'].value_counts()

@@ -117,9 +117,25 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     with tab1:
         st.subheader("🌍 Global UMAP Comparison")
         
+        # Participant ID input for highlighting
+        st.markdown("**🔍 Highlight Participant in Training Data**")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            highlight_participant = st.text_input(
+                "Enter participant ID to highlight (e.g., ef5f3e74):",
+                value=participant_id.split('_')[0] if '_' in participant_id else participant_id,
+                help="Enter the participant ID to highlight their tracks in the global UMAP plot"
+            )
+        with col2:
+            if st.button("🔍 Highlight", type="primary"):
+                st.session_state['highlight_participant'] = highlight_participant
+        
+        # Use the highlighted participant ID if set, otherwise use the current participant
+        highlight_pid = st.session_state.get('highlight_participant', participant_id)
+        
         # Create global UMAP plot with training data
         with st.spinner("Creating global UMAP comparison..."):
-            global_fig, comparison_stats = get_global_umap_comparison(preds)
+            global_fig, comparison_stats = get_global_umap_comparison(preds, participant_id=highlight_pid)
             
             if comparison_stats:
                 st.plotly_chart(global_fig, use_container_width=True)
@@ -133,7 +149,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                     st.markdown("**📊 New Data Distribution**")
                     st.dataframe(comparison_stats['new_data_distribution'])
                 
-                st.info("💡 **Global UMAP Plot**: Training data points (small, transparent) show the overall clustering pattern. Your new data points (large, outlined) show where your participant's sperm tracks fall within the global context.")
+                st.info("💡 **Global UMAP Plot**: Training data points are small and transparent. Your participant’s tracks in the training set are highlighted with a black outline. New data distribution is shown alongside training distribution.")
             else:
                 st.plotly_chart(global_fig, use_container_width=True)
                 st.warning("⚠️ Could not load training data. Showing new data only.")
