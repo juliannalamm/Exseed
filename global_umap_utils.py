@@ -37,14 +37,6 @@ def load_or_create_training_umap_data():
                 pass
         return training_data
     
-    # Legacy fallback: cached pickle
-    training_cache_file = "training_data_with_umap.pkl"
-    if os.path.exists(training_cache_file):
-        print("Loading real training data with UMAP coordinates from pickle...")
-        with open(training_cache_file, 'rb') as f:
-            training_data = pickle.load(f)
-        return training_data
-    
     print("Training data file not found. Expected train_track_df.csv in project root.")
     return None
 
@@ -162,6 +154,200 @@ def create_new_data_only_plot(new_data_df):
     
     return fig
 
+def create_feature_distribution_plots(training_data_df, features):
+    """
+    Create box plots showing feature distributions across clusters
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    # Create subplots
+    fig = make_subplots(
+        rows=3, cols=3,
+        subplot_titles=features,
+        specs=[[{"secondary_y": False}] * 3] * 3
+    )
+    
+    # Color mapping for clusters
+    cluster_colors = {
+        0: '#1f77b4',  # blue
+        1: '#ff7f0e',  # orange  
+        2: '#2ca02c',  # green
+        3: '#d62728',  # red
+    }
+    
+    # Create box plots for each feature
+    for i, feature in enumerate(features):
+        row = (i // 3) + 1
+        col = (i % 3) + 1
+        
+        # Get data for each cluster
+        for cluster_id in sorted(training_data_df['cluster_id'].unique()):
+            cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
+            subtype = cluster_data['subtype_label'].iloc[0]
+            values = cluster_data[feature].dropna()
+            
+            if len(values) > 0:
+                fig.add_trace(
+                    go.Box(
+                        y=values,
+                        name=f"{subtype} (n={len(values)})",
+                        marker_color=cluster_colors[cluster_id],
+                        opacity=0.7,
+                        boxpoints='outliers',
+                        jitter=0.3,
+                        pointpos=-1.8
+                    ),
+                    row=row, col=col
+                )
+    
+    # Update layout
+    fig.update_layout(
+        title="Feature Distributions by Cluster",
+        height=800,
+        showlegend=False
+    )
+    
+    # Update y-axis labels
+    for i in range(1, 4):
+        for j in range(1, 4):
+            fig.update_yaxes(title_text="Value", row=i, col=j)
+    
+    return fig
+
+def calculate_feature_statistics(training_data_df, features):
+    """
+    Calculate feature statistics for each cluster
+    """
+    stats = {}
+    
+    for cluster_id in training_data_df['cluster_id'].unique():
+        cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
+        subtype = cluster_data['subtype_label'].iloc[0]
+        
+        cluster_stats = {}
+        for feature in features:
+            values = cluster_data[feature].dropna()
+            if len(values) > 0:
+                cluster_stats[feature] = {
+                    'mean': values.mean(),
+                    'std': values.std(),
+                    'min': values.min(),
+                    'max': values.max(),
+                    'q25': values.quantile(0.25),
+                    'q75': values.quantile(0.75),
+                    'count': len(values)
+                }
+        
+        stats[subtype] = cluster_stats
+    
+    return stats
+
+def suggest_cutoffs(feature_stats, features):
+    """
+    Suggest cutoff ranges based on feature distributions
+    """
+    cutoffs = {}
+    
+    for feature in features:
+        feature_cutoffs = {}
+        
+        # Get all values for this feature across clusters
+        all_means = []
+        for subtype, stats in feature_stats.items():
+            if feature in stats:
+                mean_val = stats[feature]['mean']
+                all_means.append((subtype, mean_val))
+        
+        # Sort by mean values to identify natural boundaries
+        all_means.sort(key=lambda x: x[1])
+        
+        # Identify potential cutoffs between clusters
+        for i in range(len(all_means) - 1):
+            current_subtype, current_mean = all_means[i]
+            next_subtype, next_mean = all_means[i + 1]
+            
+            # Calculate midpoint as potential cutoff
+            cutoff_point = (current_mean + next_mean) / 2
+            feature_cutoffs[f"{current_subtype}_to_{next_subtype}"] = cutoff_point
+        
+        cutoffs[feature] = feature_cutoffs
+    
+    return cutoffs
+
+def suggest_gmm_based_cutoffs(training_data_df, features):
+    """
+    Suggest cutoff ranges based on GMM model decision boundaries
+    """
+    import numpy as np
+    import pickle
+    from sklearn.mixture import GaussianMixture
+    
+    cutoffs = {}
+    
+    # Load the trained GMM model
+    try:
+        with open("trained_gmm_model.pkl", "rb") as f:
+            model_data = pickle.load(f)
+            gmm_model = model_data['gmm']
+            scaler = model_data['scaler']
+            print("✅ Successfully loaded GMM model")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not load GMM model ({e}), using simple cutoffs")
+        return suggest_cutoffs(calculate_feature_statistics(training_data_df, features), features)
+    
+    for feature in features:
+        feature_cutoffs = {}
+        
+        # Get feature data for all clusters
+        cluster_means = {}
+        cluster_stds = {}
+        
+        for cluster_id in training_data_df['cluster_id'].unique():
+            cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
+            subtype = cluster_data['subtype_label'].iloc[0]
+            values = cluster_data[feature].dropna()
+            
+            if len(values) > 0:
+                cluster_means[subtype] = values.mean()
+                cluster_stds[subtype] = values.std()
+        
+        # Sort clusters by mean value
+        sorted_clusters = sorted(cluster_means.items(), key=lambda x: x[1])
+        
+        # Calculate GMM-based cutoffs between adjacent clusters
+        for i in range(len(sorted_clusters) - 1):
+            current_subtype, current_mean = sorted_clusters[i]
+            next_subtype, next_mean = sorted_clusters[i + 1]
+            
+            # For GMM, we can use the decision boundary where two Gaussians intersect
+            # This is approximately where the means are weighted by their variances
+            current_std = cluster_stds[current_subtype]
+            next_std = cluster_stds[next_subtype]
+            
+            # Weighted average based on cluster variances (inverse variance weighting)
+            if current_std > 0 and next_std > 0:
+                weight1 = 1 / (current_std ** 2)
+                weight2 = 1 / (next_std ** 2)
+                total_weight = weight1 + weight2
+                
+                cutoff_point = (current_mean * weight1 + next_mean * weight2) / total_weight
+                
+                # Debug: Show the calculation
+                simple_midpoint = (current_mean + next_mean) / 2
+                print(f"  {feature}: {current_subtype}(mean={current_mean:.3f}, std={current_std:.3f}) vs {next_subtype}(mean={next_mean:.3f}, std={next_std:.3f})")
+                print(f"    Simple: {simple_midpoint:.3f}, GMM-weighted: {cutoff_point:.3f}, Diff: {cutoff_point-simple_midpoint:.3f}")
+            else:
+                # Fallback to simple midpoint
+                cutoff_point = (current_mean + next_mean) / 2
+                print(f"  {feature}: Using simple midpoint for {current_subtype} to {next_subtype}")
+            
+            feature_cutoffs[f"{current_subtype}_to_{next_subtype}"] = cutoff_point
+        
+        cutoffs[feature] = feature_cutoffs
+    
+    return cutoffs
+
 def get_global_umap_comparison(new_data_df, participant_id=None):
     """
     Main function to get global UMAP comparison.
@@ -231,4 +417,23 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
             fig = create_new_data_only_plot(new_data_df)
         else:
             fig = go.Figure()
-        return fig, None 
+        return fig, None
+
+def get_feature_analysis(training_data_df):
+    """
+    Get feature distribution plots and cutoff suggestions
+    """
+    # Define features
+    features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
+    
+    # Create feature distribution plots
+    feature_fig = create_feature_distribution_plots(training_data_df, features)
+    
+    # Calculate feature statistics
+    feature_stats = calculate_feature_statistics(training_data_df, features)
+    
+    # Get both types of cutoffs for comparison
+    simple_cutoffs = suggest_cutoffs(feature_stats, features)
+    gmm_cutoffs = suggest_gmm_based_cutoffs(training_data_df, features)
+    
+    return feature_fig, feature_stats, simple_cutoffs, gmm_cutoffs 
