@@ -97,54 +97,56 @@ with tab1:
         st.subheader("📊 Feature Distribution Analysis")
         
         with st.spinner("Analyzing feature distributions..."):
-            from global_umap_utils import get_feature_analysis
-            feature_fig, feature_stats, simple_cutoffs, gmm_cutoffs = get_feature_analysis(training_data)
-            
-            # Display feature distribution plots
-            st.plotly_chart(feature_fig, use_container_width=True)
+            from global_umap_utils import get_feature_analysis, create_single_feature_plot
+            feature_stats, cutoffs = get_feature_analysis(training_data)
             
             # Display cutoff suggestions
-            st.markdown("**🎯 Cutoff Comparison: Simple vs GMM-Based**")
+            st.markdown("**🎯 GMM-Based Cutoff Ranges**")
             
             # Create tabs for different features
             feature_tabs = st.tabs(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"])
             
             for i, feature in enumerate(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"]):
                 with feature_tabs[i]:
-                    col1, col2 = st.columns(2)
+                    # Create two columns: chart on left, cutoffs on right
+                    col1, col2 = st.columns([2, 1])
                     
                     with col1:
-                        st.markdown("**📊 Simple Midpoint Method:**")
-                        if feature in simple_cutoffs:
-                            for cutoff_name, cutoff_value in simple_cutoffs[feature].items():
-                                st.write(f"- {cutoff_name}: {cutoff_value:.3f}")
-                        else:
-                            st.write("No cutoff data available.")
+                        # Create and display the individual feature plot
+                        feature_fig = create_single_feature_plot(training_data, feature)
+                        st.plotly_chart(feature_fig, use_container_width=True)
                     
                     with col2:
-                        st.markdown("**🎯 GMM-Based Method:**")
-                        if feature in gmm_cutoffs:
-                            for cutoff_name, cutoff_value in gmm_cutoffs[feature].items():
+                        if feature in cutoffs:
+                            st.markdown(f"**{feature} Cutoffs:**")
+                            
+                            # Get all cutoffs for this feature and sort them
+                            feature_cutoffs = cutoffs[feature]
+                            cutoff_values = []
+                            for cutoff_name, cutoff_value in feature_cutoffs.items():
+                                cutoff_values.append((cutoff_name, cutoff_value))
+                            cutoff_values.sort(key=lambda x: x[1])  # Sort by value
+                            
+                            # Display in range format
+                            if len(cutoff_values) >= 3:
+                                st.markdown("**Classification Ranges:**")
+                                st.write(f"- **Immotile**: {feature} < {cutoff_values[0][1]:.3f}")
+                                st.write(f"- **Nonprogressive**: {cutoff_values[0][1]:.3f} ≤ {feature} < {cutoff_values[1][1]:.3f}")
+                                st.write(f"- **Progressive**: {cutoff_values[1][1]:.3f} ≤ {feature} < {cutoff_values[2][1]:.3f}")
+                                st.write(f"- **Vigorous**: {feature} ≥ {cutoff_values[2][1]:.3f}")
+                            
+                            st.markdown("**Raw Cutoff Values:**")
+                            for cutoff_name, cutoff_value in cutoff_values:
                                 st.write(f"- {cutoff_name}: {cutoff_value:.3f}")
                         else:
-                            st.write("No cutoff data available.")
-                    
-                    # Show differences
-                    st.markdown("**📈 Differences:**")
-                    if feature in simple_cutoffs and feature in gmm_cutoffs:
-                        for cutoff_name in simple_cutoffs[feature].keys():
-                            if cutoff_name in gmm_cutoffs[feature]:
-                                simple_val = simple_cutoffs[feature][cutoff_name]
-                                gmm_val = gmm_cutoffs[feature][cutoff_name]
-                                diff = gmm_val - simple_val
-                                st.write(f"- {cutoff_name}: {diff:+.3f} ({diff/simple_val*100:+.1f}%)")
-                    
-                    # Show feature statistics
-                    st.markdown("**📋 Feature Statistics by Cluster:**")
-                    for subtype, stats in feature_stats.items():
-                        if feature in stats:
-                            stat = stats[feature]
-                            st.write(f"**{subtype}**: mean={stat['mean']:.3f}, std={stat['std']:.3f}, q75={stat['q75']:.3f}")
+                            st.write("No cutoff data available for this feature.")
+                        
+                        # Show feature statistics
+                        st.markdown("**📋 Feature Statistics by Cluster:**")
+                        for subtype, stats in feature_stats.items():
+                            if feature in stats:
+                                stat = stats[feature]
+                                st.write(f"**{subtype}**: mean={stat['mean']:.3f}, std={stat['std']:.3f}, q75={stat['q75']:.3f}")
             
             # Summary recommendations
             st.markdown("**💡 Recommendations for Identifying Sperm Types:**")

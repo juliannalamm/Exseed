@@ -154,6 +154,58 @@ def create_new_data_only_plot(new_data_df):
     
     return fig
 
+def create_single_feature_plot(training_data_df, feature):
+    """
+    Create a single box plot for one feature
+    """
+    import plotly.graph_objects as go
+    
+    # Color mapping for clusters
+    cluster_colors = {
+        0: '#1f77b4',  # blue
+        1: '#ff7f0e',  # orange  
+        2: '#2ca02c',  # green
+        3: '#d62728',  # red
+    }
+    
+    fig = go.Figure()
+    
+    # Get data for each cluster
+    for cluster_id in sorted(training_data_df['cluster_id'].unique()):
+        cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
+        subtype = cluster_data['subtype_label'].iloc[0]
+        values = cluster_data[feature].dropna()
+        
+        if len(values) > 0:
+            fig.add_trace(
+                go.Box(
+                    y=values,
+                    name=f"{subtype} (n={len(values)})",
+                    marker_color=cluster_colors[cluster_id],
+                    opacity=0.7,
+                    boxpoints='outliers',
+                    jitter=0.3,
+                    pointpos=-1.8
+                )
+            )
+    
+    # Update layout
+    fig.update_layout(
+        title=f"{feature} Distribution by Cluster",
+        height=400,
+        showlegend=True,
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        )
+    )
+    
+    fig.update_yaxes(title_text=feature)
+    
+    return fig
+
 def create_feature_distribution_plots(training_data_df, features):
     """
     Create box plots showing feature distributions across clusters
@@ -421,19 +473,15 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
 
 def get_feature_analysis(training_data_df):
     """
-    Get feature distribution plots and cutoff suggestions
+    Get feature statistics and cutoff suggestions
     """
     # Define features
     features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
     
-    # Create feature distribution plots
-    feature_fig = create_feature_distribution_plots(training_data_df, features)
-    
     # Calculate feature statistics
     feature_stats = calculate_feature_statistics(training_data_df, features)
     
-    # Get both types of cutoffs for comparison
-    simple_cutoffs = suggest_cutoffs(feature_stats, features)
+    # Get GMM-based cutoffs
     gmm_cutoffs = suggest_gmm_based_cutoffs(training_data_df, features)
     
-    return feature_fig, feature_stats, simple_cutoffs, gmm_cutoffs 
+    return feature_stats, gmm_cutoffs 
