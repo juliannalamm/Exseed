@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import cv2
+import plotly.express as px 
 
 
 # =========================
@@ -129,10 +130,42 @@ def predict_sperm_motility(new_data: pd.DataFrame,
         if i in cluster_to_label:
             result_df[f'P_{cluster_to_label[i]}'] = probabilities[:, i]
 
-    if include_umap and umap_model is not None:
-        umap_embedding = umap_model.transform(X_scaled)
-        result_df['umap_1'] = umap_embedding[:, 0]
-        result_df['umap_2'] = umap_embedding[:, 1]
+    if include_umap:
+        if umap_model is not None:
+            # Try using the pre-trained UMAP model first
+            try:
+                umap_embedding = umap_model.transform(X_scaled)
+                result_df['umap_1'] = umap_embedding[:, 0]
+                result_df['umap_2'] = umap_embedding[:, 1]
+                
+                # Check if the embedding is meaningful (not all points clustered together)
+                umap_range_1 = result_df['umap_1'].max() - result_df['umap_1'].min()
+                umap_range_2 = result_df['umap_2'].max() - result_df['umap_2'].min()
+                
+                if umap_range_1 < 0.1 or umap_range_2 < 0.1:
+                    # UMAP embedding is too compressed, retrain on new data
+                    print("Pre-trained UMAP produced compressed embedding, retraining on new data...")
+                    import umap
+                    new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+                    new_embedding = new_umap.fit_transform(X_scaled)
+                    result_df['umap_1'] = new_embedding[:, 0]
+                    result_df['umap_2'] = new_embedding[:, 1]
+                    
+            except Exception as e:
+                print(f"Error with pre-trained UMAP: {e}. Retraining on new data...")
+                import umap
+                new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+                new_embedding = new_umap.fit_transform(X_scaled)
+                result_df['umap_1'] = new_embedding[:, 0]
+                result_df['umap_2'] = new_embedding[:, 1]
+        else:
+            # No pre-trained UMAP model, train new one
+            print("No pre-trained UMAP model found, training new one...")
+            import umap
+            new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+            new_embedding = new_umap.fit_transform(X_scaled)
+            result_df['umap_1'] = new_embedding[:, 0]
+            result_df['umap_2'] = new_embedding[:, 1]
 
     return result_df
 
