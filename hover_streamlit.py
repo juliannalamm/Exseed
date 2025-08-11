@@ -33,6 +33,13 @@ json_file = st.sidebar.file_uploader("Upload JSON", type=["json"])
 video_file = st.sidebar.file_uploader("Upload Video", type=["mp4"])
 run_btn = st.sidebar.button("▶️ Run Analysis")
 
+# Clear results button
+if st.sidebar.button("🗑️ Clear Results"):
+    for key in ['preds', 'frame_df', 'h264_path', 'preds_csv', 'participant_id']:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.rerun()
+
 # Process Inputs
 if run_btn and json_file and video_file:
     with st.spinner("Processing your data..."):
@@ -72,7 +79,35 @@ if run_btn and json_file and video_file:
             output_path=raw_overlay_path
         )
         convert_to_h264(raw_overlay_path, h264_path)
+        
+        # Store data in session state to persist between interactions
+        st.session_state['preds'] = preds
+        st.session_state['frame_df'] = frame_df
+        st.session_state['h264_path'] = h264_path
+        st.session_state['preds_csv'] = preds_csv
+        st.session_state['participant_id'] = participant_id
 
+# =====================
+# 🔹 Display Results (if data exists in session state)
+# =====================
+
+# Debug: Show session state info
+with st.sidebar.expander("🔧 Debug Info"):
+    st.write("Session state keys:", list(st.session_state.keys()))
+    if 'preds' in st.session_state:
+        st.write("Data shape:", st.session_state['preds'].shape)
+    if 'participant_id' in st.session_state:
+        st.write("Participant:", st.session_state['participant_id'])
+
+if 'preds' in st.session_state and 'frame_df' in st.session_state:
+    preds = st.session_state['preds']
+    frame_df = st.session_state['frame_df']
+    h264_path = st.session_state['h264_path']
+    preds_csv = st.session_state['preds_csv']
+    participant_id = st.session_state['participant_id']
+    
+    st.success(f"✅ Analysis complete for {participant_id}")
+    
     # =====================
     # 🔹 UMAP Interactive Plot
     # =====================
@@ -111,17 +146,12 @@ if run_btn and json_file and video_file:
             # Display the plot using st.plotly_chart instead of plotly_events
             st.plotly_chart(fig, use_container_width=True)
             
-            # For now, disable click events since they might be causing issues
-            click_result = []
-            
             # Add a note about the plot
             st.info("💡 The UMAP plot shows sperm tracks clustered by motility patterns. Each point represents a sperm track, colored by its predicted motility subtype.")
         else:
             st.error(f"UMAP coordinates are too compressed (ranges: {umap_range_1:.3f}, {umap_range_2:.3f}). This indicates an issue with the UMAP model.")
-            click_result = []
     else:
         st.warning("UMAP coordinates not available. Check if the model contains a UMAP model and if include_umap=True.")
-        click_result = []
 
     # =====================
     # 🔹 Show Trajectory for Selected Track
@@ -186,5 +216,7 @@ if run_btn and json_file and video_file:
     st.download_button("📥 Download Predictions CSV", data=open(preds_csv, "rb"), file_name="predictions.csv")
     st.download_button("📥 Download Overlayed Video", data=open(h264_path, "rb"), file_name="overlayed_trajectories.mp4")
 
+elif run_btn and json_file and video_file:
+    st.info("🔄 Processing... Please wait for the analysis to complete.")
 else:
     st.info("⬅️ Please upload both a JSON and MP4 file, then click Run.")
