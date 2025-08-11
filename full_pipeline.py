@@ -275,11 +275,10 @@ def overlay_trajectories_on_video(
             cx, cy = pts[-1]
             cv2.circle(frame, (cx, cy), point_radius, color, thickness=-1)
             if show_ids:
-                label = f"{tid}"
-                if subtype:
-                    label += f" · {subtype}"
-                cv2.putText(frame, label, (cx + 6, cy - 6),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
+                label = subtype if subtype else ""
+                if label:
+                    cv2.putText(frame, label, (cx + 6, cy - 6),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
 
         writer.write(frame)
         frame_idx += 1
