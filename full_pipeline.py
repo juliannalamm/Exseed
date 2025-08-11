@@ -131,31 +131,61 @@ def predict_sperm_motility(new_data: pd.DataFrame,
             result_df[f'P_{cluster_to_label[i]}'] = probabilities[:, i]
 
     if include_umap:
+        # First, try to get UMAP coordinates from existing training data
+        try:
+            import pandas as pd
+            if os.path.exists("train_track_df.csv"):
+                train_df = pd.read_csv("train_track_df.csv")
+                
+                # Check if this participant exists in training data
+                participant_id = new_data_df['participant_id'].iloc[0] if 'participant_id' in new_data_df.columns else None
+                
+                if participant_id and participant_id in train_df['participant_id'].values:
+                    # Get existing UMAP coordinates for this participant
+                    existing_data = train_df[train_df['participant_id'] == participant_id]
+                    
+                    # Match tracks by track_id
+                    merged_data = new_data_df.merge(
+                        existing_data[['track_id', 'umap_1', 'umap_2']], 
+                        on='track_id', 
+                        how='left'
+                    )
+                    
+                    # Use existing coordinates where available
+                    if not merged_data['umap_1'].isna().all():
+                        result_df['umap_1'] = merged_data['umap_1']
+                        result_df['umap_2'] = merged_data['umap_2']
+                        print(f"✅ Using existing UMAP coordinates for {participant_id} from training data")
+                        return result_df
+                    else:
+                        print(f"⚠️ Participant {participant_id} found in training data but no matching track_ids")
+                else:
+                    print(f"ℹ️ Participant {participant_id} not found in training data, using UMAP model")
+        except Exception as e:
+            print(f"⚠️ Error accessing training data: {e}")
+        
+        # Fallback to UMAP model - use RAW features (not scaled) to match notebook
         if umap_model is not None:
-            # Try using the pre-trained UMAP model first
             try:
-                umap_embedding = umap_model.transform(X_scaled)
+                # Use raw features for UMAP (not scaled) to match the notebook training
+                X_raw = new_data_df[features].values
+                umap_embedding = umap_model.transform(X_raw)
                 result_df['umap_1'] = umap_embedding[:, 0]
                 result_df['umap_2'] = umap_embedding[:, 1]
                 
-                # Check if the embedding is meaningful (not all points clustered together)
+                print("Using pre-trained UMAP model with raw features for consistent coordinate system")
+                
+                # Check the embedding ranges for debugging
                 umap_range_1 = result_df['umap_1'].max() - result_df['umap_1'].min()
                 umap_range_2 = result_df['umap_2'].max() - result_df['umap_2'].min()
-                
-                if umap_range_1 < 0.1 or umap_range_2 < 0.1:
-                    # UMAP embedding is too compressed, retrain on new data
-                    print("Pre-trained UMAP produced compressed embedding, retraining on new data...")
-                    import umap
-                    new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-                    new_embedding = new_umap.fit_transform(X_scaled)
-                    result_df['umap_1'] = new_embedding[:, 0]
-                    result_df['umap_2'] = new_embedding[:, 1]
+                print(f"UMAP ranges for new data: X={umap_range_1:.3f}, Y={umap_range_2:.3f}")
+                print(f"UMAP coordinate range: X=[{result_df['umap_1'].min():.3f}, {result_df['umap_1'].max():.3f}], Y=[{result_df['umap_2'].min():.3f}, {result_df['umap_2'].max():.3f}]")
                     
             except Exception as e:
                 print(f"Error with pre-trained UMAP: {e}. Retraining on new data...")
                 import umap
                 new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-                new_embedding = new_umap.fit_transform(X_scaled)
+                new_embedding = new_umap.fit_transform(X_raw)
                 result_df['umap_1'] = new_embedding[:, 0]
                 result_df['umap_2'] = new_embedding[:, 1]
         else:
@@ -163,7 +193,7 @@ def predict_sperm_motility(new_data: pd.DataFrame,
             print("No pre-trained UMAP model found, training new one...")
             import umap
             new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-            new_embedding = new_umap.fit_transform(X_scaled)
+            new_embedding = new_umap.fit_transform(X_raw)
             result_df['umap_1'] = new_embedding[:, 0]
             result_df['umap_2'] = new_embedding[:, 1]
 
