@@ -164,12 +164,14 @@ def predict_sperm_motility(new_data: pd.DataFrame,
         except Exception as e:
             print(f"⚠️ Error accessing training data: {e}")
         
-        # Fallback to UMAP model - use RAW features (not scaled) to match notebook
+        # Fallback to UMAP model - use SCALED features to match notebook
+        # Define X_scaled here so it's available in all cases
+        X_scaled = scaler.transform(new_data[features])
+        
         if umap_model is not None:
             try:
-                # Use raw features for UMAP (not scaled) to match the notebook training
-                X_raw = new_data_df[features].values
-                umap_embedding = umap_model.transform(X_raw)
+                # Use scaled features for UMAP to match the notebook training
+                umap_embedding = umap_model.transform(X_scaled)
                 result_df['umap_1'] = umap_embedding[:, 0]
                 result_df['umap_2'] = umap_embedding[:, 1]
                 
@@ -185,7 +187,7 @@ def predict_sperm_motility(new_data: pd.DataFrame,
                 print(f"Error with pre-trained UMAP: {e}. Retraining on new data...")
                 import umap
                 new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-                new_embedding = new_umap.fit_transform(X_raw)
+                new_embedding = new_umap.fit_transform(X_scaled)
                 result_df['umap_1'] = new_embedding[:, 0]
                 result_df['umap_2'] = new_embedding[:, 1]
         else:
@@ -193,7 +195,7 @@ def predict_sperm_motility(new_data: pd.DataFrame,
             print("No pre-trained UMAP model found, training new one...")
             import umap
             new_umap = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
-            new_embedding = new_umap.fit_transform(X_raw)
+            new_embedding = new_umap.fit_transform(X_scaled)
             result_df['umap_1'] = new_embedding[:, 0]
             result_df['umap_2'] = new_embedding[:, 1]
 

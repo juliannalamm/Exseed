@@ -247,33 +247,103 @@ with tab2:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**📊 Individual UMAP**")
+            st.markdown("**🗺️ Individual Data on Global UMAP**")
             
             if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
-                # Check if we have meaningful UMAP coordinates
-                umap_range_1 = preds['umap_1'].max() - preds['umap_1'].min()
-                umap_range_2 = preds['umap_2'].max() - preds['umap_2'].min()
+                # Create a combined plot showing training data + new data
+                from global_umap_utils import load_or_create_training_umap_data
                 
-                if umap_range_1 > 0.1 and umap_range_2 > 0.1:
-                    # Create the scatter plot
+                # Load training data for comparison
+                training_data = load_or_create_training_umap_data()
+                if training_data is not None:
+                    # Create a combined plot showing both training and new data
+                    import plotly.graph_objects as go
+                    
+                    # Create the plot
+                    fig = go.Figure()
+                    
+                    # Color mapping for clusters
+                    cluster_colors = {
+                        0: '#1f77b4',  # blue
+                        1: '#ff7f0e',  # orange  
+                        2: '#2ca02c',  # green
+                        3: '#d62728',  # red
+                    }
+                    
+                    # Add training data points (smaller, more transparent)
+                    for cluster_id in sorted(training_data['cluster_id'].unique()):
+                        cluster_data = training_data[training_data['cluster_id'] == cluster_id]
+                        subtype = cluster_data['subtype_label'].iloc[0]
+                        
+                        fig.add_trace(go.Scatter(
+                            x=cluster_data['umap_1'],
+                            y=cluster_data['umap_2'],
+                            mode='markers',
+                            marker=dict(
+                                size=4,
+                                color=cluster_colors.get(cluster_id, '#888'),
+                                opacity=0.3
+                            ),
+                            name=f'Training: {subtype}',
+                            showlegend=True,
+                            hovertemplate='<b>Training Data</b><br>' +
+                                         f'Subtype: {subtype}<br>' +
+                                         'Cluster: %{customdata}<br>' +
+                                         '<extra></extra>',
+                            customdata=cluster_data['cluster_id']
+                        ))
+                    
+                    # Add new participant data (larger, more prominent)
+                    for cluster_id in sorted(preds['cluster_id'].unique()):
+                        cluster_data = preds[preds['cluster_id'] == cluster_id]
+                        subtype = cluster_data['subtype_label'].iloc[0]
+                        
+                        fig.add_trace(go.Scatter(
+                            x=cluster_data['umap_1'],
+                            y=cluster_data['umap_2'],
+                            mode='markers',
+                            marker=dict(
+                                size=12,
+                                color=cluster_colors.get(cluster_id, '#444'),
+                                opacity=1.0,
+                                line=dict(color='red', width=3),
+                                symbol='diamond'
+                            ),
+                            name=f'Your Data: {subtype}',
+                            showlegend=True,
+                            hovertemplate='<b>Your Participant</b><br>' +
+                                         'Track: %{text}<br>' +
+                                         f'Subtype: {subtype}<br>' +
+                                         'Cluster: %{customdata}<br>' +
+                                         '<extra></extra>',
+                            text=cluster_data['track_id'],
+                            customdata=cluster_data['cluster_id']
+                        ))
+                    
+                    # Update layout
+                    fig.update_layout(
+                        title=f"Global UMAP: Your Data vs Training Data - {participant_id}",
+                        xaxis_title="UMAP 1",
+                        yaxis_title="UMAP 2",
+                        height=500
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.info("💡 **Global UMAP**: Training data points are small and transparent. Your participant's tracks are highlighted as large, red-outlined diamonds.")
+                else:
+                    # Fallback to individual UMAP if training data not available
                     fig = px.scatter(
                         preds,
                         x='umap_1',
                         y='umap_2',
                         color='subtype_label' if 'subtype_label' in preds else 'cluster_id',
                         hover_data=['track_id'],
-                        title="Individual UMAP",
+                        title="Individual UMAP (Training data not available)",
                         width=400,
                         height=400
                     )
-                    
-                    # Display the plot
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Add a note about the plot
-                    st.info("💡 Individual clustering pattern for your uploaded data.")
-                else:
-                    st.error(f"UMAP coordinates are too compressed (ranges: {umap_range_1:.3f}, {umap_range_2:.3f}).")
+                    st.warning("⚠️ Training data not available, showing individual UMAP only.")
             else:
                 st.warning("UMAP coordinates not available.")
         
