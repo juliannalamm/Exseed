@@ -376,12 +376,39 @@ with tab2:
                     
                     # Show track statistics in a more compact format
                     track_stats = preds[preds['track_id'] == selected_track].iloc[0]
+                    
+                    # Get specific cluster probabilities
+                    specific_probs = ['P_nonprogressive', 'P_vigorous', 'P_immotile', 'P_progressive']
+                    cluster_probs = {col: track_stats[col] for col in specific_probs if col in track_stats}
+                    
+                    # Get feature values
+                    features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
+                    feature_values = {f: track_stats[f] for f in features if f in track_stats}
+                    
                     st.markdown(f"""
                     **Track Info:**
                     - **Subtype:** {track_stats['subtype_label']}
                     - **Cluster:** {track_stats['cluster_id']}
                     - **Frames:** {len(traj_df)}
                     """)
+                    
+                    # Display feature values in a table
+                    if feature_values:
+                        st.markdown("**Feature Values:**")
+                        feature_df = pd.DataFrame(list(feature_values.items()), columns=['Feature', 'Value'])
+                        feature_df['Value'] = feature_df['Value'].apply(lambda x: f"{x:.3f}")
+                        st.dataframe(feature_df, use_container_width=True)
+                    else:
+                        st.info("Feature values not available for this track.")
+                    
+                    # Display probabilities in a table
+                    if cluster_probs:
+                        st.markdown("**Cluster Probabilities:**")
+                        prob_df = pd.DataFrame(list(cluster_probs.items()), columns=['Cluster', 'Probability'])
+                        prob_df['Probability'] = prob_df['Probability'].apply(lambda x: f"{x:.3f}")
+                        st.dataframe(prob_df, use_container_width=True)
+                    else:
+                        st.info("Cluster probabilities not available for this track.")
                 else:
                     st.warning("No trajectory data found.")
         
