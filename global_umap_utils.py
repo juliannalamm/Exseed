@@ -66,10 +66,28 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
         3: '#d62728',  # red
     }
     
-    # Add training data points (smaller, more transparent)
+    # Add training data points with opacity based on confidence
     for cluster_id in sorted(training_data_df['cluster_id'].unique()):
         cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
         subtype = cluster_data['subtype_label'].iloc[0]
+        
+        # Get the probability of the assigned cluster for each track
+        opacity_values = []
+        for _, track in cluster_data.iterrows():
+            # Get the probability of the cluster this track was assigned to
+            assigned_subtype = track['subtype_label']
+            prob_col = f'P_{assigned_subtype}'
+            
+            if prob_col in track:
+                prob_value = track[prob_col]
+                # These are standard 0-1 probabilities, so we can use them directly
+                # Scale opacity: 0.4 to 1.0 (minimum opacity for visibility)
+                opacity = 0.4 + (prob_value * 0.6)
+            else:
+                opacity = 0.8  # Fallback
+            opacity_values.append(opacity)
+        
+        opacity_values = np.array(opacity_values)
         
         fig.add_trace(go.Scatter(
             x=cluster_data['umap_1'],
@@ -78,15 +96,21 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
             marker=dict(
                 size=4,
                 color=cluster_colors.get(cluster_id, '#888'),
-                opacity=0.8
+                opacity=opacity_values
             ),
             name=f'Training: {subtype}',
             showlegend=True,
             hovertemplate='<b>Training Data</b><br>' +
                          f'Subtype: {subtype}<br>' +
                          'Cluster: %{customdata}<br>' +
+                         'Confidence: %{marker.opacity:.2f}<br>' +
+                         'VCL: %{text[0]:.1f}<br>' +
+                         'ALH: %{text[1]:.2f}<br>' +
+                         'VSL: %{text[2]:.1f}<br>' +
+                         'VAP: %{text[3]:.1f}<br>' +
                          '<extra></extra>',
-            customdata=cluster_data['cluster_id']
+            customdata=cluster_data['cluster_id'],
+            text=cluster_data[['VCL', 'ALH', 'VSL', 'VAP']].values
         ))
     
     # Highlight specific tracks, if provided
@@ -97,6 +121,25 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
             for cluster_id in sorted(highlight_df['cluster_id'].unique()):
                 sub = highlight_df[highlight_df['cluster_id'] == cluster_id]
                 subtype = sub['subtype_label'].iloc[0]
+                
+                # Get the probability of the assigned cluster for highlighted tracks
+                opacity_values = []
+                for _, track in sub.iterrows():
+                    # Get the probability of the cluster this track was assigned to
+                    assigned_subtype = track['subtype_label']
+                    prob_col = f'P_{assigned_subtype}'
+                    
+                    if prob_col in track:
+                        prob_value = track[prob_col]
+                        # These are standard 0-1 probabilities, so we can use them directly
+                        # Scale opacity: 0.6 to 1.0 for highlighted tracks
+                        opacity = 0.6 + (prob_value * 0.4)
+                    else:
+                        opacity = 1.0  # Fallback
+                    opacity_values.append(opacity)
+                
+                opacity_values = np.array(opacity_values)
+                
                 fig.add_trace(go.Scatter(
                     x=sub['umap_1'],
                     y=sub['umap_2'],
@@ -104,7 +147,7 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
                     marker=dict(
                         size=25,
                         color=cluster_colors.get(cluster_id, '#444'),
-                        opacity=1.0,
+                        opacity=opacity_values,
                         line=dict(color='red', width=5),
                         symbol='diamond'
                     ),
@@ -114,14 +157,24 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
                                  'Track: %{text}<br>' +
                                  f'Subtype: {subtype}<br>' +
                                  'Cluster: %{customdata}<br>' +
+                                 'Confidence: %{marker.opacity:.2f}<br>' +
+                                 'VCL: %{customdata2[0]:.1f}<br>' +
+                                 'ALH: %{customdata2[1]:.2f}<br>' +
+                                 'VSL: %{customdata2[2]:.1f}<br>' +
+                                 'VAP: %{customdata2[3]:.1f}<br>' +
                                  '<extra></extra>',
                     text=sub['track_id'],
-                    customdata=sub['cluster_id']
+                    customdata=sub['cluster_id'],
+                    customdata2=sub[['VCL', 'ALH', 'VSL', 'VAP']].values
                 ))
     
     # Update layout
+    title = "Global UMAP: Training Data"
+    if highlight_track_ids:
+        title += " (highlighted tracks in red outline)"
+    
     fig.update_layout(
-        title="Global UMAP: Training Data (highlighted tracks in black outline)",
+        title=title,
         xaxis_title="UMAP 1",
         yaxis_title="UMAP 2",
         width=800,
@@ -324,7 +377,7 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
             
             print(f"Found {len(highlight_ids)} tracks for participant {participant_id}: {highlight_ids[:5]}...")
         
-        # Create global plot, highlighting matching training points
+        # Create global plot (no highlighting when participant_id is None)
         global_fig = create_global_umap_plot(training_data, highlight_track_ids=highlight_ids)
         
         # Calculate summary statistics

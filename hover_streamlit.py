@@ -53,41 +53,27 @@ with tab1:
     training_data = load_or_create_training_umap_data()
     
     if training_data is not None:
-        # Get unique participants from training data
-        if 'participant_id' in training_data.columns:
-            available_participants = sorted(training_data['participant_id'].unique())
-        else:
-            # Extract participant IDs from track_ids
-            available_participants = sorted(
-                training_data['track_id'].str.split('_track_').str[0].unique()
-            )
-        
-        # Participant selection dropdown
-        st.markdown("**🔍 Select Participant to Highlight**")
-        selected_participant = st.selectbox(
-            "Choose a participant to highlight in the global UMAP:",
-            options=available_participants,
-            index=0 if available_participants else None,
-            help="Select a participant to highlight their tracks in the global UMAP plot"
-        )
-        
-        # Create global UMAP plot with selected participant
+        # Create global UMAP plot showing only training data
         with st.spinner("Creating global UMAP comparison..."):
-            global_fig, comparison_stats = get_global_umap_comparison(None, participant_id=selected_participant)
+            global_fig, comparison_stats = get_global_umap_comparison(None, participant_id=None)
         
         if comparison_stats:
             st.plotly_chart(global_fig, use_container_width=True)
             
-            # Show comparison statistics
+            # Show training data statistics
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("**📊 Overall Training Data Distribution**")
+                st.markdown("**📊 Training Data Distribution**")
                 st.dataframe(comparison_stats['training_distribution'])
             with col2:
-                st.markdown(f"**📊 {selected_participant} Distribution (from training data)**")
-                st.dataframe(comparison_stats['new_data_distribution'])
+                st.markdown("**📊 Training Data Summary**")
+                st.markdown(f"""
+                - **Total Tracks:** {comparison_stats['training_total']}
+                - **Unique Subtypes:** {len(comparison_stats['training_distribution'])}
+                - **Data Source:** train_track_df.csv
+                """)
             
-            st.info(f"💡 **Global UMAP Plot**: Training data points are small and transparent. {selected_participant}'s tracks are highlighted as large, red-outlined diamonds. The distribution shows how this participant's tracks were classified during training.")
+            st.info("💡 **Training Data UMAP Plot**: This shows the distribution of all training data points across the different sperm motility subtypes.")
         else:
             st.plotly_chart(global_fig, use_container_width=True)
             st.warning("⚠️ Could not load training data.")
