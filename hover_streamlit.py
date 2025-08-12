@@ -80,7 +80,7 @@ with tab1:
             from global_umap_utils import get_feature_analysis
             feature_stats, cutoffs = get_feature_analysis(training_data)
             
-            # Create columns for the percentages and cutoffs
+            # Display percentages in columns with expandable criteria under each
             cols = st.columns(4)
             
             for i, (subtype, count) in enumerate(dist_data.items()):
@@ -91,28 +91,33 @@ with tab1:
                     st.markdown(f"**{count:,} tracks**")
                     st.markdown(f"## **{percentage:.1f}%**")
                     
-                    # Add cutoff ranges as subheaders
+                    # Create expandable section for this cluster's criteria
                     if cutoffs:
-                        # Define key features and their cutoff patterns for each subtype
-                        cutoff_patterns = {
-                            'progressive': ['VCL >= 35', 'ALH >= 1.0', 'VSL >= 15', 'LIN >= 0.5'],
-                            'vigorous': ['VCL >= 75', 'ALH >= 1.5', 'VSL >= 40', 'LIN >= 0.7'],
-                            'immotile': ['VCL <= 25', 'ALH <= 0.5', 'VSL <= 5', 'LIN <= 0.3'],
-                            'nonprogressive': ['VCL 25-35', 'ALH 0.5-1.0', 'VSL 5-15', 'LIN 0.3-0.5']
-                        }
-                        
-                        if subtype in cutoff_patterns:
-                            # More compact display with icons
-                            st.markdown("**🎯 Criteria:**")
-                            patterns = cutoff_patterns[subtype]
-                            # Display in 2x2 grid format with simple text
-                            vcl_text = patterns[0].replace('VCL ', '')
-                            alh_text = patterns[1].replace('ALH ', '')
-                            vsl_text = patterns[2].replace('VSL ', '')
-                            lin_text = patterns[3].replace('LIN ', '')
+                        with st.expander(f"🎯 **{subtype.title()} Criteria**", expanded=False):
+                            import pandas as pd
                             
-                            st.markdown(f"**VCL:** {vcl_text} | **ALH:** {alh_text}")
-                            st.markdown(f"**VSL:** {vsl_text} | **LIN:** {lin_text}")
+                            # Get actual cutoff values from the calculated cutoffs
+                            key_features = ['VCL', 'ALH', 'VSL', 'LIN', 'BCF', 'WOB', 'MAD', 'STR', 'VAP']
+                            cutoff_data = []
+                            
+                            for feature in key_features:
+                                if feature in cutoffs and subtype in cutoffs[feature]:
+                                    cutoff_value = cutoffs[feature][subtype]
+                                    cutoff_data.append({
+                                        'Feature': feature,
+                                        'Cutoff': cutoff_value
+                                    })
+                                else:
+                                    cutoff_data.append({
+                                        'Feature': feature,
+                                        'Cutoff': 'N/A'
+                                    })
+                            
+                            # Create DataFrame for table
+                            cutoff_df = pd.DataFrame(cutoff_data)
+                            
+                            # Display as a compact table
+                            st.dataframe(cutoff_df, use_container_width=True, hide_index=True)
                     else:
                         st.markdown("*No cutoff data*")
             
@@ -140,45 +145,16 @@ with tab1:
             
             for i, feature in enumerate(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"]):
                 with feature_tabs[i]:
-                    # Create two columns: chart on left, cutoffs on right
-                    col1, col2 = st.columns([2, 1])
+                    # Create and display the individual feature plot
+                    feature_fig = create_single_feature_plot(training_data, feature)
+                    st.plotly_chart(feature_fig, use_container_width=True)
                     
-                    with col1:
-                        # Create and display the individual feature plot
-                        feature_fig = create_single_feature_plot(training_data, feature)
-                        st.plotly_chart(feature_fig, use_container_width=True)
-                    
-                    with col2:
-                        if feature in cutoffs:
-                            st.markdown(f"**{feature} Cutoffs:**")
-                            
-                            # Get all cutoffs for this feature and sort them
-                            feature_cutoffs = cutoffs[feature]
-                            cutoff_values = []
-                            for cutoff_name, cutoff_value in feature_cutoffs.items():
-                                cutoff_values.append((cutoff_name, cutoff_value))
-                            cutoff_values.sort(key=lambda x: x[1])  # Sort by value
-                            
-                            # Display in range format
-                            if len(cutoff_values) >= 3:
-                                st.markdown("**Classification Ranges:**")
-                                st.write(f"- **Immotile**: {feature} < {cutoff_values[0][1]:.3f}")
-                                st.write(f"- **Nonprogressive**: {cutoff_values[0][1]:.3f} ≤ {feature} < {cutoff_values[1][1]:.3f}")
-                                st.write(f"- **Progressive**: {cutoff_values[1][1]:.3f} ≤ {feature} < {cutoff_values[2][1]:.3f}")
-                                st.write(f"- **Vigorous**: {feature} ≥ {cutoff_values[2][1]:.3f}")
-                            
-                            st.markdown("**Raw Cutoff Values:**")
-                            for cutoff_name, cutoff_value in cutoff_values:
-                                st.write(f"- {cutoff_name}: {cutoff_value:.3f}")
-                        else:
-                            st.write("No cutoff data available for this feature.")
-                        
-                        # Show feature statistics
-                        st.markdown("**📋 Feature Statistics by Cluster:**")
-                        for subtype, stats in feature_stats.items():
-                            if feature in stats:
-                                stat = stats[feature]
-                                st.write(f"**{subtype}**: mean={stat['mean']:.3f}, std={stat['std']:.3f}, q75={stat['q75']:.3f}")
+                    # Show feature statistics
+                    st.markdown("**📋 Feature Statistics by Cluster:**")
+                    for subtype, stats in feature_stats.items():
+                        if feature in stats:
+                            stat = stats[feature]
+                            st.write(f"**{subtype}**: mean={stat['mean']:.3f}, std={stat['std']:.3f}, q75={stat['q75']:.3f}")
             
             # Summary recommendations
             st.markdown("**💡 Recommendations for Identifying Sperm Types:**")

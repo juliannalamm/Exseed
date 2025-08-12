@@ -418,7 +418,7 @@ def get_global_umap_comparison(new_data_df, participant_id=None):
 
 def get_feature_analysis(training_data_df):
     """
-    Get feature statistics and cutoff suggestions
+    Get feature statistics and cutoff suggestions with clean formatting for Streamlit
     """
     # Define features
     features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
@@ -429,4 +429,53 @@ def get_feature_analysis(training_data_df):
     # Get GMM-based cutoffs
     gmm_cutoffs = suggest_gmm_based_cutoffs(training_data_df, features)
     
-    return feature_stats, gmm_cutoffs 
+    # Create a clean format with pre-formatted ranges for each subtype
+    clean_cutoffs = {}
+    
+    for feature in features:
+        if feature in gmm_cutoffs:
+            feature_cutoffs = gmm_cutoffs[feature]
+            clean_cutoffs[feature] = {}
+            
+            # Map the cutoff values to ranges for each subtype based on feature
+            if feature in ['VCL', 'ALH', 'VSL', 'STR', 'VAP']:
+                # Standard order: immotile -> nonprogressive -> progressive -> vigorous
+                if 'immotile_to_nonprogressive' in feature_cutoffs and 'nonprogressive_to_progressive' in feature_cutoffs and 'progressive_to_vigorous' in feature_cutoffs:
+                    clean_cutoffs[feature]['immotile'] = f"< {feature_cutoffs['immotile_to_nonprogressive']:.2f}"
+                    clean_cutoffs[feature]['nonprogressive'] = f"{feature_cutoffs['immotile_to_nonprogressive']:.2f} - {feature_cutoffs['nonprogressive_to_progressive']:.2f}"
+                    clean_cutoffs[feature]['progressive'] = f"{feature_cutoffs['nonprogressive_to_progressive']:.2f} - {feature_cutoffs['progressive_to_vigorous']:.2f}"
+                    clean_cutoffs[feature]['vigorous'] = f"> {feature_cutoffs['progressive_to_vigorous']:.2f}"
+            
+            elif feature == 'BCF':
+                # Special order: nonprogressive -> vigorous -> immotile -> progressive
+                if 'nonprogressive_to_vigorous' in feature_cutoffs and 'vigorous_to_immotile' in feature_cutoffs and 'immotile_to_progressive' in feature_cutoffs:
+                    clean_cutoffs[feature]['nonprogressive'] = f"< {feature_cutoffs['nonprogressive_to_vigorous']:.1f}"
+                    clean_cutoffs[feature]['vigorous'] = f"{feature_cutoffs['nonprogressive_to_vigorous']:.1f} - {feature_cutoffs['vigorous_to_immotile']:.1f}"
+                    clean_cutoffs[feature]['immotile'] = f"{feature_cutoffs['vigorous_to_immotile']:.1f} - {feature_cutoffs['immotile_to_progressive']:.1f}"
+                    clean_cutoffs[feature]['progressive'] = f"> {feature_cutoffs['immotile_to_progressive']:.1f}"
+            
+            elif feature == 'LIN':
+                # Special order: immotile -> nonprogressive -> vigorous -> progressive
+                if 'immotile_to_nonprogressive' in feature_cutoffs and 'nonprogressive_to_vigorous' in feature_cutoffs and 'vigorous_to_progressive' in feature_cutoffs:
+                    clean_cutoffs[feature]['immotile'] = f"< {feature_cutoffs['immotile_to_nonprogressive']:.2f}"
+                    clean_cutoffs[feature]['nonprogressive'] = f"{feature_cutoffs['immotile_to_nonprogressive']:.2f} - {feature_cutoffs['nonprogressive_to_vigorous']:.2f}"
+                    clean_cutoffs[feature]['vigorous'] = f"{feature_cutoffs['nonprogressive_to_vigorous']:.2f} - {feature_cutoffs['vigorous_to_progressive']:.2f}"
+                    clean_cutoffs[feature]['progressive'] = f"> {feature_cutoffs['vigorous_to_progressive']:.2f}"
+            
+            elif feature == 'MAD':
+                # Special order: immotile -> progressive -> nonprogressive -> vigorous
+                if 'immotile_to_progressive' in feature_cutoffs and 'progressive_to_nonprogressive' in feature_cutoffs and 'nonprogressive_to_vigorous' in feature_cutoffs:
+                    clean_cutoffs[feature]['immotile'] = f"< {feature_cutoffs['immotile_to_progressive']:.1f}"
+                    clean_cutoffs[feature]['progressive'] = f"{feature_cutoffs['immotile_to_progressive']:.1f} - {feature_cutoffs['progressive_to_nonprogressive']:.1f}"
+                    clean_cutoffs[feature]['nonprogressive'] = f"{feature_cutoffs['progressive_to_nonprogressive']:.1f} - {feature_cutoffs['nonprogressive_to_vigorous']:.1f}"
+                    clean_cutoffs[feature]['vigorous'] = f"> {feature_cutoffs['nonprogressive_to_vigorous']:.1f}"
+            
+            elif feature == 'WOB':
+                # Standard order: immotile -> nonprogressive -> vigorous -> progressive
+                if 'immotile_to_nonprogressive' in feature_cutoffs and 'nonprogressive_to_vigorous' in feature_cutoffs and 'vigorous_to_progressive' in feature_cutoffs:
+                    clean_cutoffs[feature]['immotile'] = f"< {feature_cutoffs['immotile_to_nonprogressive']:.2f}"
+                    clean_cutoffs[feature]['nonprogressive'] = f"{feature_cutoffs['immotile_to_nonprogressive']:.2f} - {feature_cutoffs['nonprogressive_to_vigorous']:.2f}"
+                    clean_cutoffs[feature]['vigorous'] = f"{feature_cutoffs['nonprogressive_to_vigorous']:.2f} - {feature_cutoffs['vigorous_to_progressive']:.2f}"
+                    clean_cutoffs[feature]['progressive'] = f"> {feature_cutoffs['vigorous_to_progressive']:.2f}"
+    
+    return feature_stats, clean_cutoffs 
