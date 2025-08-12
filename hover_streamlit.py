@@ -60,18 +60,103 @@ with tab1:
         if comparison_stats:
             st.plotly_chart(global_fig, use_container_width=True)
             
-            # Show training data statistics
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**📊 Training Data Distribution**")
-                st.dataframe(comparison_stats['training_distribution'])
-            with col2:
-                st.markdown("**📊 Training Data Summary**")
-                st.markdown(f"""
-                - **Total Tracks:** {comparison_stats['training_total']}
-                - **Unique Subtypes:** {len(comparison_stats['training_distribution'])}
-                - **Data Source:** train_track_df.csv
-                """)
+            # Show training data distribution with circular progress indicators
+            st.markdown("**📊 Training Data Distribution**")
+            
+            # Calculate percentages
+            total_tracks = comparison_stats['training_total']
+            dist_data = comparison_stats['training_distribution']
+            
+            # Color mapping for subtypes
+            color_map = {
+                'vigorous': '#ff7f0e',      # orange
+                'progressive': '#2ca02c',   # green
+                'nonprogressive': '#d62728', # red
+                'immotile': '#1f77b4'       # blue
+            }
+            
+            # Create circular progress indicators using Plotly pie charts
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+            
+            # Create subplots for each subtype
+            fig = make_subplots(
+                rows=1, cols=4,
+                specs=[[{"type": "domain"}]*4],
+                subplot_titles=[
+                    f"{subtype.title()}<br><span style='font-size:0.8em;color:gray'>{count:,} tracks</span>"
+                    for subtype, count in dist_data.items()
+                ],
+            )
+
+            pie_trace_idxs = []  # remember each pie's index so we can read its domain later
+
+            for i, (subtype, count) in enumerate(dist_data.items()):
+                percentage = (count / total_tracks) * 100
+                color = color_map.get(subtype, '#888')
+
+                subtype_data = training_data[training_data['subtype_label'] == subtype]
+                avg_vcl = subtype_data['VCL'].mean()
+                avg_alh = subtype_data['ALH'].mean()
+                avg_vsl = subtype_data['VSL'].mean()
+
+                pie_values = [percentage, 100 - percentage]
+                pie_colors = [color, 'lightgray']
+
+                fig.add_trace(
+                    go.Pie(
+                        values=pie_values,
+                        labels=['', ''],
+                        marker=dict(colors=pie_colors, line=dict(width=0)),
+                        hole=0.7,
+                        rotation=90,
+                        showlegend=False,
+                        hoverinfo='skip',
+                        textinfo='none'
+                    ),
+                    row=1, col=i+1
+                )
+                pie_trace_idxs.append(len(fig.data) - 1)
+
+            # Build centered annotations using each pie trace's domain (x/y are in "paper" coords)
+            for idx, (subtype, count) in zip(pie_trace_idxs, dist_data.items()):
+                t = fig.data[idx]
+                cx = sum(t.domain.x) / 2.0  # center x of this donut
+                cy = sum(t.domain.y) / 2.0  # center y of this donut
+
+                subtype_data = training_data[training_data['subtype_label'] == subtype]
+                percentage = (count / total_tracks) * 100
+                center_text = (
+                    f"{percentage:.1f}%<br>"
+                    f"VCL: {subtype_data['VCL'].mean():.1f}<br>"
+                    f"ALH: {subtype_data['ALH'].mean():.2f}<br>"
+                    f"VSL: {subtype_data['VSL'].mean():.1f}"
+                )
+
+                fig.add_annotation(
+                    x=cx, y=cy,
+                    xref='paper', yref='paper',
+                    text=center_text,
+                    showarrow=False,
+                    font=dict(size=14, color='darkgray'),
+                    align='center'
+                )
+
+            # Clean background, grids, ticks
+            fig.update_layout(
+                height=300,
+                showlegend=False,
+                margin=dict(l=20, r=20, t=60, b=20),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+            fig.update_xaxes(visible=False, showgrid=False, zeroline=False, showticklabels=False)
+            fig.update_yaxes(visible=False, showgrid=False, zeroline=False, showticklabels=False)
+
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Show total tracks info
+            st.markdown(f"**Total Tracks:** {total_tracks:,} | **Data Source:** train_track_df.csv")
             
             st.info("💡 **Training Data UMAP Plot**: This shows the distribution of all training data points across the different sperm motility subtypes.")
         else:
