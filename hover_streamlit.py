@@ -235,190 +235,259 @@ with tab2:
         preds_csv = st.session_state['preds_csv']
         participant_id = st.session_state['participant_id']
         
-        st.success(f"✅ Analysis complete for {participant_id}")
+
         
         # Debug information
-        with st.expander("🔧 Debug Info"):
-            st.write("Session state keys:", list(st.session_state.keys()))
-            st.write("Data shape:", preds.shape)
-            st.write("Participant:", participant_id)
-            st.write(f"**Columns:** {list(preds.columns)}")
-            st.write(f"**Has umap_1:** {'umap_1' in preds.columns}")
-            st.write(f"**Has umap_2:** {'umap_2' in preds.columns}")
-            if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
-                st.write(f"**UMAP 1 range:** {preds['umap_1'].min():.3f} to {preds['umap_1'].max():.3f}")
-                st.write(f"**UMAP 2 range:** {preds['umap_2'].min():.3f} to {preds['umap_2'].max():.3f}")
-                st.write(f"**Number of points:** {len(preds)}")
-                st.write(f"**Unique clusters:** {sorted(preds['cluster_id'].unique())}")
         
-        # Create two columns for analysis results
-        col1, col2 = st.columns(2)
+        # UMAP Visualization
         
-        with col1:
-            st.markdown("**🗺️ Individual Data on Global UMAP**")
+        if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
+            # Create a combined plot showing training data + new data
+            from global_umap_utils import load_or_create_training_umap_data
             
-            if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
-                # Create a combined plot showing training data + new data
-                from global_umap_utils import load_or_create_training_umap_data
+            # Load training data for comparison
+            training_data = load_or_create_training_umap_data()
+            if training_data is not None:
+                # Create a combined plot showing both training and new data
+                import plotly.graph_objects as go
                 
-                # Load training data for comparison
-                training_data = load_or_create_training_umap_data()
-                if training_data is not None:
-                    # Create a combined plot showing both training and new data
-                    import plotly.graph_objects as go
+                # Create the plot
+                fig = go.Figure()
+                
+                # Color mapping for clusters
+                cluster_colors = {
+                    0: '#1f77b4',  # blue
+                    1: '#ff7f0e',  # orange  
+                    2: '#2ca02c',  # green
+                    3: '#d62728',  # red
+                }
+                
+                # Add training data points (smaller, more transparent)
+                for cluster_id in sorted(training_data['cluster_id'].unique()):
+                    cluster_data = training_data[training_data['cluster_id'] == cluster_id]
+                    subtype = cluster_data['subtype_label'].iloc[0]
                     
-                    # Create the plot
+                    fig.add_trace(go.Scatter(
+                        x=cluster_data['umap_1'],
+                        y=cluster_data['umap_2'],
+                        mode='markers',
+                        marker=dict(
+                            size=4,
+                            color=cluster_colors.get(cluster_id, '#888'),
+                            opacity=0.3
+                        ),
+                        name=f'Training: {subtype}',
+                        showlegend=True,
+                        hovertemplate='<b>Training Data</b><br>' +
+                                     f'Subtype: {subtype}<br>' +
+                                     'Cluster: %{customdata}<br>' +
+                                     '<extra></extra>',
+                        customdata=cluster_data['cluster_id']
+                    ))
+                
+                # Add new participant data (larger, more prominent)
+                for cluster_id in sorted(preds['cluster_id'].unique()):
+                    cluster_data = preds[preds['cluster_id'] == cluster_id]
+                    subtype = cluster_data['subtype_label'].iloc[0]
+                    
+                    fig.add_trace(go.Scatter(
+                        x=cluster_data['umap_1'],
+                        y=cluster_data['umap_2'],
+                        mode='markers',
+                        marker=dict(
+                            size=8,
+                            color=cluster_colors.get(cluster_id, '#444'),
+                            opacity=1.0,
+                            line=dict(color='white', width=1),
+                        ),
+                        name=f'Your Data: {subtype}',
+                        showlegend=True,
+                        hovertemplate='<b>Your Participant</b><br>' +
+                                     'Track: %{text}<br>' +
+                                     f'Subtype: {subtype}<br>' +
+                                     'Cluster: %{customdata}<br>' +
+                                     '<extra></extra>',
+                        text=cluster_data['track_id'],
+                        customdata=cluster_data['cluster_id']
+                    ))
+                
+                # Update layout
+                fig.update_layout(
+                    title=f"Global UMAP: Your Data vs Training Data - {participant_id}",
+                    xaxis_title="UMAP 1",
+                    yaxis_title="UMAP 2",
+                    height=500
+                )
+                
+                st.plotly_chart(fig, use_container_width=True, key="global_umap")
+                st.info("💡 **Global UMAP**: Participant sperm are highlighted as larger white-outlined circles. Double-click on legend points to isolate and view data")
+            else:
+                # Fallback to individual UMAP if training data not available
+                fig = px.scatter(
+                    preds,
+                    x='umap_1',
+                    y='umap_2',
+                    color='subtype_label' if 'subtype_label' in preds else 'cluster_id',
+                    hover_data=['track_id'],
+                    title="Individual UMAP (Training data not available)",
+                    width=400,
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True, key="individual_umap")
+                st.warning("⚠️ Training data not available, showing individual UMAP only.")
+        else:
+            st.warning("UMAP coordinates not available.")
+        
+        # Simple Bar Chart with Median Lines
+        st.markdown("**📊 Participant Metrics vs Median**")
+        try:
+            from participant_metrics import calculate_median_participant_metrics, get_metric_status
+            
+            # Calculate median metrics
+            median_metrics, metrics_df = calculate_median_participant_metrics()
+            
+            # Calculate current participant metrics
+            current_total_tracks = len(preds)
+            current_subtype_counts = preds['subtype_label'].value_counts()
+            current_percentages = {}
+            
+            for subtype in ['progressive', 'vigorous', 'immotile', 'nonprogressive']:
+                count = current_subtype_counts.get(subtype, 0)
+                percentage = (count / current_total_tracks) * 100
+                current_percentages[subtype] = percentage
+            
+            current_percentages['motile'] = current_percentages['progressive'] + current_percentages['vigorous'] + current_percentages['nonprogressive']
+            
+            # Create single bar chart
+            metrics_to_show = ['progressive', 'vigorous', 'immotile', 'nonprogressive']
+            metric_names = ['Progressive', 'Vigorous', 'Immotile', 'Nonprogressive']
+            
+            # Create 2x2 grid of individual bar charts
+            col1, col2 = st.columns(2)
+            
+            for i, (metric, name) in enumerate(zip(metrics_to_show, metric_names)):
+                with col1 if i < 2 else col2:
+                    # Create individual bar chart for this metric
                     fig = go.Figure()
                     
-                    # Color mapping for clusters
-                    cluster_colors = {
-                        0: '#1f77b4',  # blue
-                        1: '#ff7f0e',  # orange  
-                        2: '#2ca02c',  # green
-                        3: '#d62728',  # red
-                    }
+                    # Add bar for current participant
+                    fig.add_trace(go.Bar(
+                        x=[name],
+                        y=[current_percentages[metric]],
+                        name='Your Participant',
+                        marker_color='#4dabf7',
+                        text=f'{current_percentages[metric]:.1f}%',
+                        textposition='auto'
+                    ))
                     
-                    # Add training data points (smaller, more transparent)
-                    for cluster_id in sorted(training_data['cluster_id'].unique()):
-                        cluster_data = training_data[training_data['cluster_id'] == cluster_id]
-                        subtype = cluster_data['subtype_label'].iloc[0]
-                        
-                        fig.add_trace(go.Scatter(
-                            x=cluster_data['umap_1'],
-                            y=cluster_data['umap_2'],
-                            mode='markers',
-                            marker=dict(
-                                size=4,
-                                color=cluster_colors.get(cluster_id, '#888'),
-                                opacity=0.3
-                            ),
-                            name=f'Training: {subtype}',
-                            showlegend=True,
-                            hovertemplate='<b>Training Data</b><br>' +
-                                         f'Subtype: {subtype}<br>' +
-                                         'Cluster: %{customdata}<br>' +
-                                         '<extra></extra>',
-                            customdata=cluster_data['cluster_id']
-                        ))
+                    # Add horizontal line for median value
+                    fig.add_hline(
+                        y=median_metrics[metric],
+                        line_dash="dash",
+                        line_color="red",
+                        annotation_text=f"Median: {median_metrics[metric]:.1f}%",
+                        annotation_position="top right"
+                    )
                     
-                    # Add new participant data (larger, more prominent)
-                    for cluster_id in sorted(preds['cluster_id'].unique()):
-                        cluster_data = preds[preds['cluster_id'] == cluster_id]
-                        subtype = cluster_data['subtype_label'].iloc[0]
-                        
-                        fig.add_trace(go.Scatter(
-                            x=cluster_data['umap_1'],
-                            y=cluster_data['umap_2'],
-                            mode='markers',
-                            marker=dict(
-                                size=12,
-                                color=cluster_colors.get(cluster_id, '#444'),
-                                opacity=1.0,
-                                line=dict(color='red', width=3),
-                                symbol='diamond'
-                            ),
-                            name=f'Your Data: {subtype}',
-                            showlegend=True,
-                            hovertemplate='<b>Your Participant</b><br>' +
-                                         'Track: %{text}<br>' +
-                                         f'Subtype: {subtype}<br>' +
-                                         'Cluster: %{customdata}<br>' +
-                                         '<extra></extra>',
-                            text=cluster_data['track_id'],
-                            customdata=cluster_data['cluster_id']
-                        ))
-                    
-                    # Update layout
                     fig.update_layout(
-                        title=f"Global UMAP: Your Data vs Training Data - {participant_id}",
-                        xaxis_title="UMAP 1",
-                        yaxis_title="UMAP 2",
-                        height=500
+                        title=f"{name} Comparison",
+                        yaxis_title="Percentage (%)",
+                        yaxis=dict(range=[0, 100]),
+                        height=200,
+                        showlegend=False,
+                        margin=dict(l=20, r=20, t=40, b=20)
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.info("💡 **Global UMAP**: Training data points are small and transparent. Your participant's tracks are highlighted as large, red-outlined diamonds.")
-                else:
-                    # Fallback to individual UMAP if training data not available
-                    fig = px.scatter(
-                        preds,
-                        x='umap_1',
-                        y='umap_2',
-                        color='subtype_label' if 'subtype_label' in preds else 'cluster_id',
-                        hover_data=['track_id'],
-                        title="Individual UMAP (Training data not available)",
-                        width=400,
-                        height=400
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.warning("⚠️ Training data not available, showing individual UMAP only.")
-            else:
-                st.warning("UMAP coordinates not available.")
-        
-        with col2:
-            st.markdown("**🎯 Track Trajectory Viewer**")
-            
-            # Create a dropdown for track selection
-            available_tracks = sorted(preds['track_id'].unique())
-            selected_track = st.selectbox(
-                "Select a track:",
-                available_tracks,
-                format_func=lambda x: f"{x} ({preds[preds['track_id']==x]['subtype_label'].iloc[0]})"
-            )
-            
-            if selected_track:
-                st.success(f"🧬 Selected: `{selected_track}`")
-                
-                traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
-                if not traj_df.empty:
-                    fig_traj = px.line(
-                        traj_df,
-                        x='x',
-                        y='y',
-                        title=f'Trajectory: {selected_track}',
-                        markers=True,
-                        width=400,
-                        height=400
-                    )
-                    st.plotly_chart(fig_traj, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=f"bar_{metric}")
                     
-                    # Show track statistics in a more compact format
-                    track_stats = preds[preds['track_id'] == selected_track].iloc[0]
+                    # Show comparison text
+                    current_value = current_percentages[metric]
+                    median_value = median_metrics[metric]
+                    current_status = get_metric_status(current_value, metric)
                     
-                    # Get specific cluster probabilities
-                    specific_probs = ['P_nonprogressive', 'P_vigorous', 'P_immotile', 'P_progressive']
-                    cluster_probs = {col: track_stats[col] for col in specific_probs if col in track_stats}
-                    
-                    # Get feature values
-                    features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
-                    feature_values = {f: track_stats[f] for f in features if f in track_stats}
+                    # Calculate percentage difference from median
+                    if median_value > 0:
+                        percent_diff = ((current_value - median_value) / median_value) * 100
+                        if percent_diff > 0:
+                            diff_text = f"+{percent_diff:.1f}% above median"
+                        else:
+                            diff_text = f"{percent_diff:.1f}% below median"
+                    else:
+                        diff_text = "N/A"
                     
                     st.markdown(f"""
-                    **Track Info:**
-                    - **Subtype:** {track_stats['subtype_label']}
-                    - **Cluster:** {track_stats['cluster_id']}
-                    - **Frames:** {len(traj_df)}
+                    **Your {name}:** {current_value:.1f}% ({current_status})  
+                    **Median {name}:** {median_value:.1f}%  
+                    **Difference:** {diff_text}
                     """)
-                    
-                    # Display feature values in a table
-                    if feature_values:
-                        st.markdown("**Feature Values:**")
-                        feature_df = pd.DataFrame(list(feature_values.items()), columns=['Feature', 'Value'])
-                        feature_df['Value'] = feature_df['Value'].apply(lambda x: f"{x:.3f}")
-                        st.dataframe(feature_df, use_container_width=True)
-                    else:
-                        st.info("Feature values not available for this track.")
-                    
-                    # Display probabilities in a table
-                    if cluster_probs:
-                        st.markdown("**Cluster Probabilities:**")
-                        prob_df = pd.DataFrame(list(cluster_probs.items()), columns=['Cluster', 'Probability'])
-                        prob_df['Probability'] = prob_df['Probability'].apply(lambda x: f"{x:.3f}")
-                        st.dataframe(prob_df, use_container_width=True)
-                    else:
-                        st.info("Cluster probabilities not available for this track.")
+            
+        except Exception as e:
+            st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
+        
+        # Track Trajectory Viewer
+        st.markdown("**🎯 Track Trajectory Viewer**")
+        
+        # Create a dropdown for track selection
+        available_tracks = sorted(preds['track_id'].unique())
+        selected_track = st.selectbox(
+            "Select a track:",
+            available_tracks,
+            format_func=lambda x: f"{x} ({preds[preds['track_id']==x]['subtype_label'].iloc[0]})"
+        )
+        
+        if selected_track:
+            st.success(f"🧬 Selected: `{selected_track}`")
+            
+            traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
+            if not traj_df.empty:
+                fig_traj = px.line(
+                    traj_df,
+                    x='x',
+                    y='y',
+                    title=f'Trajectory: {selected_track}',
+                    markers=True,
+                    width=400,
+                    height=400
+                )
+                st.plotly_chart(fig_traj, use_container_width=True, key=f"trajectory_{selected_track}")
+                
+                # Show track statistics in a more compact format
+                track_stats = preds[preds['track_id'] == selected_track].iloc[0]
+                
+                # Get specific cluster probabilities
+                specific_probs = ['P_nonprogressive', 'P_vigorous', 'P_immotile', 'P_progressive']
+                cluster_probs = {col: track_stats[col] for col in specific_probs if col in track_stats}
+                
+                # Get feature values
+                features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
+                feature_values = {f: track_stats[f] for f in features if f in track_stats}
+                
+                st.markdown(f"""
+                **Track Info:**
+                - **Subtype:** {track_stats['subtype_label']}
+                - **Cluster:** {track_stats['cluster_id']}
+                - **Frames:** {len(traj_df)}
+                """)
+                
+                # Display feature values in a table
+                if feature_values:
+                    st.markdown("**Feature Values:**")
+                    feature_df = pd.DataFrame(list(feature_values.items()), columns=['Feature', 'Value'])
+                    feature_df['Value'] = feature_df['Value'].apply(lambda x: f"{x:.3f}")
+                    st.dataframe(feature_df, use_container_width=True)
                 else:
-                    st.warning("No trajectory data found.")
+                    st.info("Feature values not available for this track.")
+                
+                # Display probabilities in a table
+                if cluster_probs:
+                    st.markdown("**Cluster Probabilities:**")
+                    prob_df = pd.DataFrame(list(cluster_probs.items()), columns=['Cluster', 'Probability'])
+                    prob_df['Probability'] = prob_df['Probability'].apply(lambda x: f"{x:.3f}")
+                    st.dataframe(prob_df, use_container_width=True)
+                else:
+                    st.info("Cluster probabilities not available for this track.")
+            else:
+                st.warning("No trajectory data found.")
         
         # Cluster distribution summary
         st.markdown("**📊 Cluster Distribution Summary**")
