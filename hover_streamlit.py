@@ -90,7 +90,7 @@ with tab1:
                     
                     # Create expandable section for this cluster's criteria
                     if cutoffs:
-                        with st.expander(f"🎯 **{subtype.title()} Criteria**", expanded=False):
+                        with st.expander(f"🎯 **{subtype.title()} Cut-offs**", expanded=False):
                      
                             
                             # Get actual cutoff values from the calculated cutoffs
@@ -132,9 +132,7 @@ with tab1:
         
         with st.spinner("Analyzing feature distributions..."):
             feature_stats, cutoffs = get_feature_analysis(training_data)
-            
-            # Display cutoff suggestions
-            st.markdown("**🎯 GMM-Based Cutoff Ranges**")
+                       
             
             # Create tabs for different features
             feature_tabs = st.tabs(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"])
@@ -145,21 +143,168 @@ with tab1:
                     feature_fig = create_single_feature_plot(training_data, feature)
                     st.plotly_chart(feature_fig, use_container_width=True)
                     
-                    # Show feature statistics
-                    st.markdown("**📋 Feature Statistics by Cluster:**")
-                    for subtype, stats in feature_stats.items():
-                        if feature in stats:
-                            stat = stats[feature]
-                            st.write(f"**{subtype}**: mean={stat['mean']:.3f}, std={stat['std']:.3f}, q75={stat['q75']:.3f}")
+               
+                    
+            
+            # Feature Statistics Bar Chart with Tabs
+            st.markdown("**📊 Feature Statistics by Cluster**")
+            
+            # Create tabs for raw vs normalized values
+            raw_tab, norm_tab = st.tabs(["Raw Values", "Normalized Values"])
+            
+            if feature_stats:
+                # Get all features and clusters
+                features = ["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"]
+                clusters = list(feature_stats.keys())
+                
+                # Create data for the bar chart
+                chart_data = []
+                for cluster in clusters:
+                    for feature in features:
+                        if feature in feature_stats[cluster]:
+                            stat = feature_stats[cluster][feature]
+                            chart_data.append({
+                                'Cluster': cluster,
+                                'Feature': feature,
+                                'Mean': stat['mean']
+                            })
+                
+                # Create DataFrame for plotting
+                chart_df = pd.DataFrame(chart_data)
+                
+                with raw_tab:
+                    # Create columns for the raw value charts
+                    col1, col2 = st.columns(2)
+                    
+                    cluster_name_colors = {
+                        'vigorous': '#1f77b4',      # blue
+                        'progressive': '#2ca02c',   # green
+                        'nonprogressive': '#ff7f0e', # red
+                        'immotile': '#d62728'       # blue
+                    }
+                    
+                    with col1:
+                        # Main chart with VCL, VSL, MAD, VAP, BCF
+                        main_features = ["VCL", "VSL", "MAD", "VAP", "BCF"]
+                        chart_df_main = chart_df[chart_df['Feature'].isin(main_features)]
+                        
+                        fig_raw_main = px.bar(
+                            chart_df_main,
+                            x='Feature',
+                            y='Mean',
+                            color='Cluster',
+                            title='Raw Mean Feature Values',
+                            barmode='group',
+                            color_discrete_map=cluster_name_colors
+                        )
+                        
+                        fig_raw_main.update_layout(
+                            xaxis_title="Feature",
+                            yaxis_title="Mean Value",
+                            height=400,
+                            showlegend=True
+                        )
+                        
+                        st.plotly_chart(fig_raw_main, use_container_width=True)
+                    
+                    with col2:
+                        # Secondary chart with WOB, STR, LIN, ALH
+                        secondary_features = ["WOB", "STR", "LIN", "ALH"]
+                        chart_df_secondary = chart_df[chart_df['Feature'].isin(secondary_features)]
+                        
+                        fig_raw_secondary = px.bar(
+                            chart_df_secondary,
+                            x='Feature',
+                            y='Mean',
+                            color='Cluster',
+                            title='Raw Mean Feature Values',
+                            barmode='group',
+                            color_discrete_map=cluster_name_colors
+                        )
+                        
+                        fig_raw_secondary.update_layout(
+                            xaxis_title="Feature",
+                            yaxis_title="Mean Value",
+                            height=400,
+                            showlegend=True
+                        )
+                        
+                        st.plotly_chart(fig_raw_secondary, use_container_width=True)
+                
+                with norm_tab:
+                    # Create columns for the normalized value charts
+                    col1, col2 = st.columns(2)
+                    
+                    # Create normalized data
+                    chart_df_norm = chart_df.copy()
+                    
+                    # Normalize the values by feature (z-score normalization)
+                    for feature in features:
+                        feature_data = chart_df_norm[chart_df_norm['Feature'] == feature]['Mean']
+                        if len(feature_data) > 0:
+                            mean_val = feature_data.mean()
+                            std_val = feature_data.std()
+                            if std_val > 0:
+                                chart_df_norm.loc[chart_df_norm['Feature'] == feature, 'Mean'] = (feature_data - mean_val) / std_val
+                    
+                    # Define colors explicitly by cluster names
+                    cluster_name_colors = {
+                        'vigorous': '#1f77b4',      # blue
+                        'progressive': '#2ca02c',   # green
+                        'nonprogressive': '#ff7f0e', # red
+                        'immotile': '#d62728'       # blue
+                    }
+                    
+                    with col1:
+                        # Main chart with VCL, VSL, MAD, VAP, BCF
+                        main_features = ["VCL", "VSL", "MAD", "VAP", "BCF"]
+                        chart_df_norm_main = chart_df_norm[chart_df_norm['Feature'].isin(main_features)]
+                        
+                        fig_norm_main = px.bar(
+                            chart_df_norm_main,
+                            x='Feature',
+                            y='Mean',
+                            color='Cluster',
+                            title='Normalized Mean Feature Values',
+                            barmode='group',
+                            color_discrete_map=cluster_name_colors,
+                        )
+                        
+                        fig_norm_main.update_layout(
+                            xaxis_title="Feature",
+                            yaxis_title="Normalized Mean Value (Z-score)",
+                            height=400,
+                            showlegend=False
+                        )
+                        
+                        st.plotly_chart(fig_norm_main, use_container_width=True)
+                    
+                    with col2:
+                        # Secondary chart with WOB, STR, LIN, ALH
+                        secondary_features = ["WOB", "STR", "LIN", "ALH"]
+                        chart_df_norm_secondary = chart_df_norm[chart_df_norm['Feature'].isin(secondary_features)]
+                        
+                        fig_norm_secondary = px.bar(
+                            chart_df_norm_secondary,
+                            x='Feature',
+                            y='Mean',
+                            color='Cluster',
+                            title='Normalized Mean Feature Values',
+                            barmode='group',
+                            color_discrete_map=cluster_name_colors
+                        )
+                        
+                        fig_norm_secondary.update_layout(
+                            xaxis_title="Feature",
+                            yaxis_title="Normalized Mean Value (Z-score)",
+                            height=400,
+                            showlegend=True
+                        )
+                        
+                        st.plotly_chart(fig_norm_secondary, use_container_width=True)
             
             # Summary recommendations
-            st.markdown("**💡 Recommendations for Identifying Sperm Types:**")
-            st.markdown("""
-            - **Hyperactivated/Vigorous**: High ALH, high BCF, lower LIN
-            - **Progressive**: High VCL, high VSL, high LIN  
-            - **Nonprogressive**: Lower VCL, lower LIN
-            - **Immotile**: Very low VCL, very low ALH
-            """)
+           
     else:
         st.error("❌ Training data not found. Please ensure train_track_df.csv is available.")
 
