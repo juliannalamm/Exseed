@@ -263,7 +263,7 @@ with tab2:
                             color=cluster_colors.get(cluster_id, '#888'),
                             opacity=0.3
                         ),
-                        name=f'Training: {subtype}',
+                        name=f'Pooled data: {subtype}',
                         showlegend=True,
                         hovertemplate='<b>Training Data</b><br>' +
                                      f'Subtype: {subtype}<br>' +
@@ -287,7 +287,7 @@ with tab2:
                             opacity=1.0,
                             line=dict(color='white', width=1),
                         ),
-                        name=f'Your Data: {subtype}',
+                        name=f'Patient data: {subtype}',
                         showlegend=True,
                         hovertemplate='<b>Your Participant</b><br>' +
                                      'Track: %{text}<br>' +
@@ -300,7 +300,7 @@ with tab2:
                 
                 # Update layout
                 fig.update_layout(
-                    title=f"Global UMAP: Your Data vs Training Data - {participant_id}",
+                    title=f"{participant_id}  vs. Global Distribution",
                     xaxis_title="UMAP 1",
                     yaxis_title="UMAP 2",
                     height=500
@@ -325,8 +325,29 @@ with tab2:
         else:
             st.warning("UMAP coordinates not available.")
         
+        # Cluster Distribution Summary
+        st.markdown("**📊 Cluster Distribution Summary**")
+        if "subtype_label" in preds.columns:
+            subtype_counts = preds["subtype_label"].value_counts()
+            total_tracks = len(preds)
+            subtype_df = pd.DataFrame({
+                'Subtype': subtype_counts.index,
+                'Count': subtype_counts.values,
+                'Percentage': (subtype_counts.values / total_tracks * 100).round(1)
+            })
+            st.dataframe(subtype_df, use_container_width=True, hide_index=True)
+        else:
+            cluster_counts = preds["cluster_id"].value_counts()
+            total_tracks = len(preds)
+            cluster_df = pd.DataFrame({
+                'Cluster': cluster_counts.index,
+                'Count': cluster_counts.values,
+                'Percentage': (cluster_counts.values / total_tracks * 100).round(1)
+            })
+            st.dataframe(cluster_df, use_container_width=True, hide_index=True)
+        
         # Simple Bar Chart with Median Lines
-        st.markdown("**📊 Participant Metrics vs Median**")
+        st.markdown("**📊 Individual vs Typical Patient**")
         try:
             
             # Calculate median metrics
@@ -392,6 +413,7 @@ with tab2:
                     axis_max = min(100, median_value + max_range)
                     
                     fig.update_layout(
+
                         xaxis_title="%",
                         xaxis=dict(range=[axis_min, axis_max]),
                         height=120,
@@ -437,7 +459,6 @@ with tab2:
         
         # Track Trajectory Viewer
         st.markdown("**🎯 Track Trajectory Viewer**")
-        
         # Create a dropdown for track selection
         available_tracks = sorted(preds['track_id'].unique())
         selected_track = st.selectbox(
@@ -447,7 +468,6 @@ with tab2:
         )
         
         if selected_track:
-            st.success(f"🧬 Selected: `{selected_track}`")
             
             traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
             if not traj_df.empty:
@@ -462,7 +482,7 @@ with tab2:
                 )
                 st.plotly_chart(fig_traj, use_container_width=True, key=f"trajectory_{selected_track}")
                 
-                # Show track statistics in a more compact format
+                # Show track statistics in collapsible dropdowns
                 track_stats = preds[preds['track_id'] == selected_track].iloc[0]
                 
                 # Get specific cluster probabilities
@@ -473,50 +493,37 @@ with tab2:
                 features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
                 feature_values = {f: track_stats[f] for f in features if f in track_stats}
                 
-                st.markdown(f"""
-                **Track Info:**
-                - **Subtype:** {track_stats['subtype_label']}
-                - **Cluster:** {track_stats['cluster_id']}
-                - **Frames:** {len(traj_df)}
-                """)
+                # Create three columns for the collapsible sections
+                col1, col2, col3 = st.columns(3)
                 
-                # Display feature values in a table
-                if feature_values:
-                    st.markdown("**Feature Values:**")
-                    feature_df = pd.DataFrame(list(feature_values.items()), columns=['Feature', 'Value'])
-                    feature_df['Value'] = feature_df['Value'].apply(lambda x: f"{x:.3f}")
-                    st.dataframe(feature_df, use_container_width=True)
-                else:
-                    st.info("Feature values not available for this track.")
+                with col1:
+                    with st.expander("📊 Feature Values", expanded=False):
+                        if feature_values:
+                            feature_df = pd.DataFrame(list(feature_values.items()), columns=['Feature', 'Value'])
+                            feature_df['Value'] = feature_df['Value'].apply(lambda x: f"{x:.3f}")
+                            st.dataframe(feature_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Feature values not available for this track.")
                 
-                # Display probabilities in a table
-                if cluster_probs:
-                    st.markdown("**Cluster Probabilities:**")
-                    prob_df = pd.DataFrame(list(cluster_probs.items()), columns=['Cluster', 'Probability'])
-                    prob_df['Probability'] = prob_df['Probability'].apply(lambda x: f"{x:.3f}")
-                    st.dataframe(prob_df, use_container_width=True)
-                else:
-                    st.info("Cluster probabilities not available for this track.")
+                with col2:
+                    with st.expander("🎯 Cluster Probabilities", expanded=False):
+                        if cluster_probs:
+                            prob_df = pd.DataFrame(list(cluster_probs.items()), columns=['Cluster', 'Probability'])
+                            prob_df['Probability'] = prob_df['Probability'].apply(lambda x: f"{x:.3f}")
+                            st.dataframe(prob_df, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Cluster probabilities not available for this track.")
+                
+                with col3:
+                    with st.expander("📈 Track Summary", expanded=False):
+                        st.markdown(f"""
+                        **Track ID:** {selected_track}  
+                        **Subtype:** {track_stats['subtype_label'] if 'subtype_label' in track_stats else f"Cluster {track_stats['cluster_id']}"}
+                        """)
             else:
                 st.warning("No trajectory data found.")
         
-        # Cluster distribution summary
-        st.markdown("**📊 Cluster Distribution Summary**")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Subtype Distribution**")
-            if "subtype_label" in preds.columns:
-                subtype_counts = preds["subtype_label"].value_counts()
-                st.dataframe(subtype_counts.rename("Count"))
-            else:
-                st.dataframe(preds["cluster_id"].value_counts().rename("Count"))
-        with col2:
-            st.markdown("**Summary Statistics**")
-            st.markdown(f"""
-            - **Total Tracks:** {len(preds)}
-            - **Unique Subtypes:** {preds['subtype_label'].nunique() if 'subtype_label' in preds.columns else preds['cluster_id'].nunique()}
-            - **Participant ID:** {participant_id}
-            """)
+
         
         # Full trajectory video overlay
         st.markdown("**🎬 Full Trajectory Video Overlay**")
