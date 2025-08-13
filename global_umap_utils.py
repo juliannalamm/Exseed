@@ -13,6 +13,14 @@ from plotly.subplots import make_subplots
 import umap
 from sklearn.preprocessing import MinMaxScaler
 
+# Color mapping for clusters - shared across all functions
+cluster_colors = {
+    0: '#1f77b4',  # blue
+    1: '#d62728',  # red  
+    2: '#2ca02c',  # green
+    3: '#ff7f0e',  # orange
+}
+
 def load_or_create_training_umap_data():
     """
     Load real training data with UMAP coordinates.
@@ -58,14 +66,6 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
     # Create the plot
     fig = go.Figure()
     
-    # Color mapping for clusters
-    cluster_colors = {
-        0: '#1f77b4',  # blue
-        1: '#ff7f0e',  # orange  
-        2: '#2ca02c',  # green
-        3: '#d62728',  # red
-    }
-    
     # Add training data points with opacity based on confidence
     for cluster_id in sorted(training_data_df['cluster_id'].unique()):
         cluster_data = training_data_df[training_data_df['cluster_id'] == cluster_id]
@@ -98,7 +98,7 @@ def create_global_umap_plot(training_data_df, highlight_track_ids=None):
                 color=cluster_colors.get(cluster_id, '#888'),
                 opacity=opacity_values
             ),
-            name=f'Training: {subtype}',
+            name=f' {subtype}',
             showlegend=True,
             hovertemplate='<b>Training Data</b><br>' +
                          f'Subtype: {subtype}<br>' +
@@ -196,14 +196,6 @@ def create_single_feature_plot(training_data_df, feature):
     Create a single box plot for one feature
     """
     import plotly.graph_objects as go
-    
-    # Color mapping for clusters
-    cluster_colors = {
-        0: '#1f77b4',  # blue
-        1: '#ff7f0e',  # orange  
-        2: '#2ca02c',  # green
-        3: '#d62728',  # red
-    }
     
     fig = go.Figure()
     

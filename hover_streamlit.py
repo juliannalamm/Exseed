@@ -3,6 +3,8 @@ import os
 import tempfile
 import pandas as pd
 import plotly.express as px
+import subprocess
+import plotly.graph_objects as go
 from full_pipeline import (
     json_to_df,
     predict_sperm_motility,
@@ -10,8 +12,13 @@ from full_pipeline import (
     overlay_trajectories_on_video,
     MODEL_PATH
 )
-from global_umap_utils import get_global_umap_comparison
-import subprocess
+from participant_metrics import calculate_median_participant_metrics, get_metric_status
+from global_umap_utils import ( 
+    load_or_create_training_umap_data,  
+    get_feature_analysis,
+    create_single_feature_plot,
+    get_global_umap_comparison, cluster_colors
+    )
 
 
 def convert_to_h264(input_path: str, output_path: str):
@@ -49,7 +56,6 @@ with tab1:
     st.subheader("🌍 Global UMAP Comparison")
     
     # Load training data to get available participants
-    from global_umap_utils import load_or_create_training_umap_data
     training_data = load_or_create_training_umap_data()
     
     if training_data is not None:
@@ -65,19 +71,10 @@ with tab1:
             total_tracks = comparison_stats['training_total']
             dist_data = comparison_stats['training_distribution']
             
-            # Color mapping for subtypes
-            color_map = {
-                'vigorous': '#ff7f0e',      # orange
-                'progressive': '#2ca02c',   # green
-                'nonprogressive': '#d62728', # red
-                'immotile': '#1f77b4'       # blue
-            }
-            
-                        # Display percentages as large, bold text with cutoff ranges
+            # Display percentages as large, bold text with cutoff ranges
             st.markdown("**📊 Training Data Distribution**")
             
             # Get feature analysis for cutoffs
-            from global_umap_utils import get_feature_analysis
             feature_stats, cutoffs = get_feature_analysis(training_data)
             
             # Display percentages in columns with expandable criteria under each
@@ -94,7 +91,7 @@ with tab1:
                     # Create expandable section for this cluster's criteria
                     if cutoffs:
                         with st.expander(f"🎯 **{subtype.title()} Criteria**", expanded=False):
-                            import pandas as pd
+                     
                             
                             # Get actual cutoff values from the calculated cutoffs
                             key_features = ['VCL', 'ALH', 'VSL', 'LIN', 'BCF', 'WOB', 'MAD', 'STR', 'VAP']
@@ -134,7 +131,6 @@ with tab1:
         st.subheader("📊 Feature Distribution Analysis")
         
         with st.spinner("Analyzing feature distributions..."):
-            from global_umap_utils import get_feature_analysis, create_single_feature_plot
             feature_stats, cutoffs = get_feature_analysis(training_data)
             
             # Display cutoff suggestions
@@ -243,24 +239,15 @@ with tab2:
         
         if 'umap_1' in preds.columns and 'umap_2' in preds.columns:
             # Create a combined plot showing training data + new data
-            from global_umap_utils import load_or_create_training_umap_data
             
             # Load training data for comparison
             training_data = load_or_create_training_umap_data()
             if training_data is not None:
                 # Create a combined plot showing both training and new data
-                import plotly.graph_objects as go
+              
                 
                 # Create the plot
                 fig = go.Figure()
-                
-                # Color mapping for clusters
-                cluster_colors = {
-                    0: '#1f77b4',  # blue
-                    1: '#ff7f0e',  # orange  
-                    2: '#2ca02c',  # green
-                    3: '#d62728',  # red
-                }
                 
                 # Add training data points (smaller, more transparent)
                 for cluster_id in sorted(training_data['cluster_id'].unique()):
@@ -341,7 +328,6 @@ with tab2:
         # Simple Bar Chart with Median Lines
         st.markdown("**📊 Participant Metrics vs Median**")
         try:
-            from participant_metrics import calculate_median_participant_metrics, get_metric_status
             
             # Calculate median metrics
             median_metrics, metrics_df = calculate_median_participant_metrics()
@@ -370,30 +356,45 @@ with tab2:
                     # Create individual bar chart for this metric
                     fig = go.Figure()
                     
+                    # Map metric names to cluster IDs for color consistency
+                    metric_to_cluster = {
+                        'progressive': 2,  # green cluster
+                        'vigorous': 3,     # orange cluster  
+                        'immotile': 0,     # blue cluster
+                        'nonprogressive': 1 # red cluster
+                    }
+                    
                     # Add bar for current participant
                     fig.add_trace(go.Bar(
-                        x=[name],
-                        y=[current_percentages[metric]],
+                        y=[name],
+                        x=[current_percentages[metric]],
+                        orientation='h',
                         name='Your Participant',
-                        marker_color='#4dabf7',
+                        marker_color=cluster_colors[metric_to_cluster[metric]],
                         text=f'{current_percentages[metric]:.1f}%',
                         textposition='auto'
                     ))
                     
-                    # Add horizontal line for median value
-                    fig.add_hline(
-                        y=median_metrics[metric],
+                    # Add vertical line for median value
+                    fig.add_vline(
+                        x=median_metrics[metric],
                         line_dash="dash",
                         line_color="red",
                         annotation_text=f"Median: {median_metrics[metric]:.1f}%",
                         annotation_position="top right"
                     )
                     
+                    # Calculate axis range centered on median
+                    median_value = median_metrics[metric]
+                    current_value = current_percentages[metric]
+                    max_range = max(abs(current_value - median_value), 20)  # At least 20% range
+                    axis_min = max(0, median_value - max_range)
+                    axis_max = min(100, median_value + max_range)
+                    
                     fig.update_layout(
-                        title=f"{name} Comparison",
-                        yaxis_title="Percentage (%)",
-                        yaxis=dict(range=[0, 100]),
-                        height=200,
+                        xaxis_title="%",
+                        xaxis=dict(range=[axis_min, axis_max]),
+                        height=120,
                         showlegend=False,
                         margin=dict(l=20, r=20, t=40, b=20)
                     )
@@ -407,19 +408,29 @@ with tab2:
                     
                     # Calculate percentage difference from median
                     if median_value > 0:
-                        percent_diff = ((current_value - median_value) / median_value) * 100
+                        percent_diff = current_value - median_value
                         if percent_diff > 0:
-                            diff_text = f"+{percent_diff:.1f}% above median"
+                            diff_text = f"+{percent_diff:.1f} percentage points above median"
                         else:
-                            diff_text = f"{percent_diff:.1f}% below median"
+                            diff_text = f"{percent_diff:.1f} percentage points below median"
                     else:
                         diff_text = "N/A"
                     
-                    st.markdown(f"""
-                    **Your {name}:** {current_value:.1f}% ({current_status})  
-                    **Median {name}:** {median_value:.1f}%  
-                    **Difference:** {diff_text}
-                    """)
+                    # Determine arrow color based on metric type and direction
+                    if metric in ['progressive', 'vigorous']:
+                        # For progressive and vigorous: above median is good (green), below is bad (red)
+                        if current_value > median_value:
+                            arrow = "🟢"
+                        else:
+                            arrow = "🔴"
+                    else:
+                        # For immotile and nonprogressive: below median is good (green), above is bad (red)
+                        if current_value < median_value:
+                            arrow = "🟢"
+                        else:
+                            arrow = "🔴"
+                    
+                    st.markdown(f"**{arrow} {diff_text}**")
             
         except Exception as e:
             st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
