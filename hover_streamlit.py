@@ -121,36 +121,17 @@ with tab1:
             # Show total tracks info
             st.markdown(f"**Total Tracks:** {total_tracks:,} | **Data Source:** train_track_df.csv")
             
-            st.info("💡 **Training Data UMAP Plot**: This shows the distribution of all training data points across the different sperm motility subtypes.")
         else:
             st.plotly_chart(global_fig, use_container_width=True)
             st.warning("⚠️ Could not load training data.")
         
-        # Feature Analysis Section
-        st.markdown("---")
+        # Feature Analysis Sectio
+        
+        # Feature Statistics Bar Chart with Tabs
         st.subheader("📊 Feature Distribution Analysis")
         
         with st.spinner("Analyzing feature distributions..."):
             feature_stats, cutoffs = get_feature_analysis(training_data)
-                       
-            
-            # Create tabs for different features
-            feature_tabs = st.tabs(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"])
-            
-            for i, feature in enumerate(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"]):
-                with feature_tabs[i]:
-                    # Create and display the individual feature plot
-                    feature_fig = create_single_feature_plot(training_data, feature)
-                    st.plotly_chart(feature_fig, use_container_width=True)
-                    
-               
-                    
-            
-            # Feature Statistics Bar Chart with Tabs
-            st.markdown("**📊 Feature Statistics by Cluster**")
-            
-            # Create tabs for raw vs normalized values
-            raw_tab, norm_tab = st.tabs(["Raw Values", "Normalized Values"])
             
             if feature_stats:
                 # Get all features and clusters
@@ -171,6 +152,9 @@ with tab1:
                 
                 # Create DataFrame for plotting
                 chart_df = pd.DataFrame(chart_data)
+                
+                # Create tabs for raw vs normalized values
+                raw_tab, norm_tab = st.tabs(["Raw Values", "Normalized Values"])
                 
                 with raw_tab:
                     # Create columns for the raw value charts
@@ -205,7 +189,7 @@ with tab1:
                             showlegend=True
                         )
                         
-                        st.plotly_chart(fig_raw_main, use_container_width=True)
+                        st.plotly_chart(fig_raw_main, use_container_width=True, key="raw_main")
                     
                     with col2:
                         # Secondary chart with WOB, STR, LIN, ALH
@@ -229,7 +213,7 @@ with tab1:
                             showlegend=True
                         )
                         
-                        st.plotly_chart(fig_raw_secondary, use_container_width=True)
+                        st.plotly_chart(fig_raw_secondary, use_container_width=True, key="raw_secondary")
                 
                 with norm_tab:
                     # Create columns for the normalized value charts
@@ -277,7 +261,7 @@ with tab1:
                             showlegend=False
                         )
                         
-                        st.plotly_chart(fig_norm_main, use_container_width=True)
+                        st.plotly_chart(fig_norm_main, use_container_width=True, key="norm_main")
                     
                     with col2:
                         # Secondary chart with WOB, STR, LIN, ALH
@@ -301,10 +285,20 @@ with tab1:
                             showlegend=True
                         )
                         
-                        st.plotly_chart(fig_norm_secondary, use_container_width=True)
+                        st.plotly_chart(fig_norm_secondary, use_container_width=True, key="norm_secondary")
+        
+        
+        # Create tabs for different features
+        feature_tabs = st.tabs(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"])
+        
+        for i, feature in enumerate(["ALH", "BCF", "LIN", "VCL", "VSL", "WOB", "MAD", "STR", "VAP"]):
+            with feature_tabs[i]:
+                # Create and display the individual feature plot
+                feature_fig = create_single_feature_plot(training_data, feature)
+                st.plotly_chart(feature_fig, use_container_width=True)
             
-            # Summary recommendations
-           
+
+                       
     else:
         st.error("❌ Training data not found. Please ensure train_track_df.csv is available.")
 
