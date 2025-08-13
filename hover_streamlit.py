@@ -325,29 +325,9 @@ with tab2:
         else:
             st.warning("UMAP coordinates not available.")
         
-        # Cluster Distribution Summary
-        st.markdown("**📊 Cluster Distribution Summary**")
-        if "subtype_label" in preds.columns:
-            subtype_counts = preds["subtype_label"].value_counts()
-            total_tracks = len(preds)
-            subtype_df = pd.DataFrame({
-                'Subtype': subtype_counts.index,
-                'Count': subtype_counts.values,
-                'Percentage': (subtype_counts.values / total_tracks * 100).round(1)
-            })
-            st.dataframe(subtype_df, use_container_width=True, hide_index=True)
-        else:
-            cluster_counts = preds["cluster_id"].value_counts()
-            total_tracks = len(preds)
-            cluster_df = pd.DataFrame({
-                'Cluster': cluster_counts.index,
-                'Count': cluster_counts.values,
-                'Percentage': (cluster_counts.values / total_tracks * 100).round(1)
-            })
-            st.dataframe(cluster_df, use_container_width=True, hide_index=True)
+
         
         # Stacked Bar Chart Comparison
-        st.markdown("**📊 Individual vs Typical Patient**")
         try:
             
             # Calculate median metrics
@@ -425,37 +405,10 @@ with tab2:
             st.plotly_chart(fig, use_container_width=True, key="stacked_bar")
             
             # Show summary comparison
-            st.markdown("**📋 Summary Comparison:**")
-            
-            # Calculate differences for each metric
-            for metric, name in zip(metrics_order, metric_names):
-                current_value = current_percentages[metric]
-                median_value = median_metrics[metric]
-                
-                if median_value > 0:
-                    percent_diff = current_value - median_value
-                    if percent_diff > 0:
-                        diff_text = f"+{percent_diff:.1f} percentage points above typical"
-                    else:
-                        diff_text = f"{percent_diff:.1f} percentage points below typical"
-                else:
-                    diff_text = "N/A"
+          
                 
                 # Determine arrow color based on metric type and direction
-                if metric in ['progressive', 'vigorous']:
-                    # For progressive and vigorous: above median is good (green), below is bad (red)
-                    if current_value > median_value:
-                        arrow = "🟢"
-                    else:
-                        arrow = "🔴"
-                else:
-                    # For immotile and nonprogressive: below median is good (green), above is bad (red)
-                    if current_value < median_value:
-                        arrow = "🟢"
-                    else:
-                        arrow = "🔴"
-                
-                st.markdown(f"**{name}:** {arrow} {diff_text}")
+           
             
         except Exception as e:
             st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
@@ -463,8 +416,68 @@ with tab2:
         except Exception as e:
             st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
         
+        # Cluster Distribution Summary
+        with st.expander("📊 Cluster Distribution Summary", expanded=False):
+            try:
+                # Calculate median metrics for comparison
+                median_metrics, metrics_df = calculate_median_participant_metrics()
+                
+                if "subtype_label" in preds.columns:
+                    subtype_counts = preds["subtype_label"].value_counts()
+                    total_tracks = len(preds)
+                    
+                    # Calculate comparison data
+                    comparison_data = []
+                    for subtype in subtype_counts.index:
+                        count = subtype_counts[subtype]
+                        percentage = (count / total_tracks * 100).round(1)
+                        
+                        # Get median value for comparison
+                        median_value = median_metrics.get(subtype, 0)
+                        if median_value > 0:
+                            percent_diff = percentage - median_value
+                            if percent_diff > 0:
+                                diff_text = f"+{percent_diff:.1f}%"
+                            else:
+                                diff_text = f"{percent_diff:.1f}%"
+                        else:
+                            diff_text = "N/A"
+                        
+                        # Determine arrow color
+                        if subtype in ['progressive', 'vigorous']:
+                            if percentage > median_value:
+                                arrow = "🟢"
+                            else:
+                                arrow = "🔴"
+                        else:
+                            if percentage < median_value:
+                                arrow = "🟢"
+                            else:
+                                arrow = "🔴"
+                        
+                        comparison_data.append({
+                            'Subtype': subtype,
+                            'Count': count,
+                            'Percentage': percentage,
+                            'vs Typical': f"{arrow} {diff_text}"
+                        })
+                    
+                    subtype_df = pd.DataFrame(comparison_data)
+                    st.dataframe(subtype_df, use_container_width=True, hide_index=True)
+                else:
+                    cluster_counts = preds["cluster_id"].value_counts()
+                    total_tracks = len(preds)
+                    cluster_df = pd.DataFrame({
+                        'Cluster': cluster_counts.index,
+                        'Count': cluster_counts.values,
+                        'Percentage': (cluster_counts.values / total_tracks * 100).round(1)
+                    })
+                    st.dataframe(cluster_df, use_container_width=True, hide_index=True)
+            except Exception as e:
+                st.warning(f"⚠️ Could not load cluster distribution: {str(e)}")
+        
         # Track Trajectory Viewer
-        st.markdown("**🎯 Track Trajectory Viewer**")
+        st.subheader("**View Trajectory**")
         # Create a dropdown for track selection
         available_tracks = sorted(preds['track_id'].unique())
         selected_track = st.selectbox(
@@ -477,19 +490,37 @@ with tab2:
             
             traj_df = frame_df[frame_df['track_id'] == selected_track].sort_values("frame_num")
             if not traj_df.empty:
+                # Get track statistics for subtype and confidence
+                track_stats = preds[preds['track_id'] == selected_track].iloc[0]
+                subtype = track_stats['subtype_label'] if 'subtype_label' in track_stats else f"Cluster {track_stats['cluster_id']}"
+                
+                # Get confidence (probability of the predicted subtype)
+                if 'subtype_label' in track_stats:
+                    # Find the probability column for the predicted subtype
+                    prob_column = f"P_{subtype}"
+                    confidence = track_stats.get(prob_column, 0) * 100
+                else:
+                    confidence = 0
+                
                 fig_traj = px.line(
                     traj_df,
                     x='x',
                     y='y',
-                    title=f'Trajectory: {selected_track}',
+                    title=f'Trajectory Subtype: {subtype} | Confidence: {confidence:.1f}%',
                     markers=True,
                     width=400,
                     height=400
                 )
+                
+                # Remove axes and axes titles
+                fig_traj.update_layout(
+                    xaxis=dict(showgrid=False, showticklabels=False, title=""),
+                    yaxis=dict(showgrid=False, showticklabels=False, title=""),
+                   
+                )
                 st.plotly_chart(fig_traj, use_container_width=True, key=f"trajectory_{selected_track}")
                 
                 # Show track statistics in collapsible dropdowns
-                track_stats = preds[preds['track_id'] == selected_track].iloc[0]
                 
                 # Get specific cluster probabilities
                 specific_probs = ['P_nonprogressive', 'P_vigorous', 'P_immotile', 'P_progressive']
