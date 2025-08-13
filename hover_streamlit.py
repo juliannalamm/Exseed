@@ -50,10 +50,10 @@ run_btn = False
 # =====================
 # 🔹 Tabbed Analysis Interface
 # =====================
-tab1, tab2 = st.tabs(["🌍 Global Explorer", "📊 Individual Analysis"])
+tab1, tab2 = st.tabs(["🌍 Pooled Data Explorer", "📊 Individual vs. Population Analysis"])
 
 with tab1:
-    st.subheader("🌍 Global UMAP Comparison")
+    st.subheader("🌍 Gaussian Mixture Model Clustering of Pooled Data ")
     
     # Load training data to get available participants
     training_data = load_or_create_training_umap_data()
@@ -164,7 +164,7 @@ with tab1:
         st.error("❌ Training data not found. Please ensure train_track_df.csv is available.")
 
 with tab2:
-    st.subheader("📊 Individual Analysis")
+    st.subheader("📊 Individual vs. Population Analysis")
     
     # Upload section
     st.markdown("**📤 Upload Files**")
@@ -346,7 +346,7 @@ with tab2:
             })
             st.dataframe(cluster_df, use_container_width=True, hide_index=True)
         
-        # Simple Bar Chart with Median Lines
+        # Stacked Bar Chart Comparison
         st.markdown("**📊 Individual vs Typical Patient**")
         try:
             
@@ -363,96 +363,102 @@ with tab2:
                 percentage = (count / current_total_tracks) * 100
                 current_percentages[subtype] = percentage
             
-            current_percentages['motile'] = current_percentages['progressive'] + current_percentages['vigorous'] + current_percentages['nonprogressive']
+            # Create stacked horizontal bar chart
+            fig = go.Figure()
             
-            # Create single bar chart
-            metrics_to_show = ['progressive', 'vigorous', 'immotile', 'nonprogressive']
-            metric_names = ['Progressive', 'Vigorous', 'Immotile', 'Nonprogressive']
+            # Map metric names to cluster IDs for color consistency
+            metric_to_cluster = {
+                'progressive': 2,  # green cluster
+                'vigorous': 3,     # orange cluster  
+                'immotile': 0,     # blue cluster
+                'nonprogressive': 1 # red cluster
+            }
             
-            # Create 2x2 grid of individual bar charts
-            col1, col2 = st.columns(2)
+            # Add bars for current participant (stacked)
+            metrics_order = ['progressive', 'vigorous', 'nonprogressive', 'immotile']
+            metric_names = ['Progressive', 'Vigorous', 'Nonprogressive', 'Immotile']
             
-            for i, (metric, name) in enumerate(zip(metrics_to_show, metric_names)):
-                with col1 if i < 2 else col2:
-                    # Create individual bar chart for this metric
-                    fig = go.Figure()
-                    
-                    # Map metric names to cluster IDs for color consistency
-                    metric_to_cluster = {
-                        'progressive': 2,  # green cluster
-                        'vigorous': 3,     # orange cluster  
-                        'immotile': 0,     # blue cluster
-                        'nonprogressive': 1 # red cluster
-                    }
-                    
-                    # Add bar for current participant
-                    fig.add_trace(go.Bar(
-                        y=[name],
-                        x=[current_percentages[metric]],
-                        orientation='h',
-                        name='Your Participant',
-                        marker_color=cluster_colors[metric_to_cluster[metric]],
-                        text=f'{current_percentages[metric]:.1f}%',
-                        textposition='auto'
-                    ))
-                    
-                    # Add vertical line for median value
-                    fig.add_vline(
-                        x=median_metrics[metric],
-                        line_dash="dash",
-                        line_color="red",
-                        annotation_text=f"Median: {median_metrics[metric]:.1f}%",
-                        annotation_position="top right"
-                    )
-                    
-                    # Calculate axis range centered on median
-                    median_value = median_metrics[metric]
-                    current_value = current_percentages[metric]
-                    max_range = max(abs(current_value - median_value), 20)  # At least 20% range
-                    axis_min = max(0, median_value - max_range)
-                    axis_max = min(100, median_value + max_range)
-                    
-                    fig.update_layout(
-
-                        xaxis_title="%",
-                        xaxis=dict(range=[axis_min, axis_max]),
-                        height=120,
-                        showlegend=False,
-                        margin=dict(l=20, r=20, t=40, b=20)
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True, key=f"bar_{metric}")
-                    
-                    # Show comparison text
-                    current_value = current_percentages[metric]
-                    median_value = median_metrics[metric]
-                    current_status = get_metric_status(current_value, metric)
-                    
-                    # Calculate percentage difference from median
-                    if median_value > 0:
-                        percent_diff = current_value - median_value
-                        if percent_diff > 0:
-                            diff_text = f"+{percent_diff:.1f} percentage points above median"
-                        else:
-                            diff_text = f"{percent_diff:.1f} percentage points below median"
+            for i, (metric, name) in enumerate(zip(metrics_order, metric_names)):
+                fig.add_trace(go.Bar(
+                    y=['Your Participant'],
+                    x=[current_percentages[metric]],
+                    orientation='h',
+                    name=name,
+                    marker_color=cluster_colors[metric_to_cluster[metric]],
+                    text=f'{current_percentages[metric]:.1f}%',
+                    textposition='inside',
+                    textfont=dict(color='white', size=10),
+                    showlegend=True
+                ))
+            
+            # Add bars for median values (separate row)
+            for i, (metric, name) in enumerate(zip(metrics_order, metric_names)):
+                fig.add_trace(go.Bar(
+                    y=['Typical Patient'],
+                    x=[median_metrics[metric]],
+                    orientation='h',
+                    name=name,
+                    marker_color=cluster_colors[metric_to_cluster[metric]],
+                    text=f'{median_metrics[metric]:.1f}%',
+                    textposition='inside',
+                    textfont=dict(color='white', size=10),
+                    showlegend=False,
+                    opacity=0.7
+                ))
+            
+            fig.update_layout(
+                title="Sperm Motility Distribution Comparison",
+                xaxis_title="Percentage (%)",
+                barmode='stack',
+                height=300,
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                ),
+                margin=dict(l=20, r=20, t=80, b=20)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True, key="stacked_bar")
+            
+            # Show summary comparison
+            st.markdown("**📋 Summary Comparison:**")
+            
+            # Calculate differences for each metric
+            for metric, name in zip(metrics_order, metric_names):
+                current_value = current_percentages[metric]
+                median_value = median_metrics[metric]
+                
+                if median_value > 0:
+                    percent_diff = current_value - median_value
+                    if percent_diff > 0:
+                        diff_text = f"+{percent_diff:.1f} percentage points above typical"
                     else:
-                        diff_text = "N/A"
-                    
-                    # Determine arrow color based on metric type and direction
-                    if metric in ['progressive', 'vigorous']:
-                        # For progressive and vigorous: above median is good (green), below is bad (red)
-                        if current_value > median_value:
-                            arrow = "🟢"
-                        else:
-                            arrow = "🔴"
+                        diff_text = f"{percent_diff:.1f} percentage points below typical"
+                else:
+                    diff_text = "N/A"
+                
+                # Determine arrow color based on metric type and direction
+                if metric in ['progressive', 'vigorous']:
+                    # For progressive and vigorous: above median is good (green), below is bad (red)
+                    if current_value > median_value:
+                        arrow = "🟢"
                     else:
-                        # For immotile and nonprogressive: below median is good (green), above is bad (red)
-                        if current_value < median_value:
-                            arrow = "🟢"
-                        else:
-                            arrow = "🔴"
-                    
-                    st.markdown(f"**{arrow} {diff_text}**")
+                        arrow = "🔴"
+                else:
+                    # For immotile and nonprogressive: below median is good (green), above is bad (red)
+                    if current_value < median_value:
+                        arrow = "🟢"
+                    else:
+                        arrow = "🔴"
+                
+                st.markdown(f"**{name}:** {arrow} {diff_text}")
+            
+        except Exception as e:
+            st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
             
         except Exception as e:
             st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
