@@ -36,12 +36,7 @@ def load_or_create_training_umap_data():
         missing = required_cols - set(training_data.columns)
         if missing:
             print(f"Warning: train_track_df.csv missing columns: {missing}. Global plot may be limited.")
-        # Derive participant_id if missing and track_id format allows
-        if 'participant_id' not in training_data.columns and 'track_id' in training_data.columns:
-            try:
-                training_data['participant_id'] = training_data['track_id'].str.split('_track_').str[0]
-            except Exception:
-                pass
+       
         return training_data
     
     print("Training data file not found. Expected train_track_df.csv in project root.")

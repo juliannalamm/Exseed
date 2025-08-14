@@ -257,12 +257,12 @@ def overlay_trajectories_on_video(
     track_df: includes ['track_id','cluster_id','subtype_label'] (from predict_sperm_motility).
     """
     # Cluster → BGR color mapping (OpenCV)
-    # 0: nonprogressive (green), 1: immotile (blue), 2: vigorous (red), 3: progressive (purple)
+    # 0: vigorous (green), 1: immotile (blue), 2: vigorous (red), 3: progressive (purple)
     cluster_colors_bgr = {
-        0: (0, 255, 0),      # green
-        1: (255, 0, 0),      # blue
-        2: (0, 0, 255),      # red
-        3: (255, 0, 255),    # purple
+        0: (255, 0, 0),      # blue
+        1: (0, 0, 255),      # red
+        2: (0,100,0),      # red
+        3: (0, 90, 178),    # orange
     }
 
     fdf = frame_df.copy()

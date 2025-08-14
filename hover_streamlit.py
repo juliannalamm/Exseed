@@ -460,7 +460,7 @@ with tab2:
             st.warning("UMAP coordinates not available.")
         
         # Video display below UMAP
-        st.markdown("**🎬 Full Trajectory Video Overlay**")
+
         total_tracks = len(preds['track_id'].unique())
         st.markdown(f"**Total Tracks Analyzed:** {total_tracks}")
         
