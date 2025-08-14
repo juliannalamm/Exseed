@@ -343,7 +343,7 @@ def overlay_trajectories_on_video(
                 label = subtype if subtype else ""
                 if label:
                     cv2.putText(frame, label, (cx + 6, cy - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 1, cv2.LINE_AA)
 
         writer.write(frame)
         frame_idx += 1

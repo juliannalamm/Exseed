@@ -67,6 +67,73 @@ def calculate_median_participant_metrics():
     
     return median_metrics, metrics_df
 
+def calculate_typical_patient_feature_profile():
+    """
+    Calculate the typical feature profile by taking the median of average feature values per cluster across participants.
+    
+    Returns:
+        tuple: (typical_profile_dict, features_df)
+            - typical_profile_dict: Dictionary with cluster names as keys and feature values as nested dicts
+            - features_df: DataFrame with participant-level feature averages
+    """
+    # Load the training data
+    df = pd.read_csv('train_track_df.csv')
+    
+    # Extract participant_id from track_id if not already present
+    if 'participant_id' not in df.columns and 'track_id' in df.columns:
+        df['participant_id'] = df['track_id'].str.split('_track_').str[0]
+    
+    # Define features to analyze
+    features = ['ALH', 'BCF', 'LIN', 'VCL', 'VSL', 'WOB', 'MAD', 'STR', 'VAP']
+    
+    # Calculate average feature values per cluster per participant
+    participant_features = []
+    
+    for participant in df['participant_id'].unique():
+        participant_data = df[df['participant_id'] == participant]
+        
+        if len(participant_data) == 0:
+            continue
+        
+        # Calculate average feature values for each cluster
+        for cluster in participant_data['subtype_label'].unique():
+            cluster_data = participant_data[participant_data['subtype_label'] == cluster]
+            
+            if len(cluster_data) == 0:
+                continue
+            
+            # Calculate mean for each feature
+            feature_means = {}
+            for feature in features:
+                if feature in cluster_data.columns:
+                    feature_means[feature] = cluster_data[feature].mean()
+                else:
+                    feature_means[feature] = 0
+            
+            participant_features.append({
+                'participant_id': participant,
+                'cluster': cluster,
+                **feature_means
+            })
+    
+    # Convert to DataFrame
+    features_df = pd.DataFrame(participant_features)
+    
+    # Calculate median feature values for each cluster (typical profile)
+    typical_profile = {}
+    
+    for cluster in ['vigorous', 'progressive', 'nonprogressive', 'immotile']:
+        cluster_data = features_df[features_df['cluster'] == cluster]
+        
+        if len(cluster_data) > 0:
+            typical_profile[cluster] = {}
+            for feature in features:
+                typical_profile[cluster][feature] = cluster_data[feature].median()
+        else:
+            typical_profile[cluster] = {feature: 0 for feature in features}
+    
+    return typical_profile, features_df
+
 def get_metric_status(value, metric_type):
     """
     Determine the status (Normal, Low, High) for a given metric value.

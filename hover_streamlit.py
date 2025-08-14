@@ -12,7 +12,7 @@ from full_pipeline import (
     overlay_trajectories_on_video,
     MODEL_PATH
 )
-from participant_metrics import calculate_median_participant_metrics, get_metric_status
+from participant_metrics import calculate_median_participant_metrics, get_metric_status, calculate_typical_patient_feature_profile
 from global_umap_utils import ( 
     load_or_create_training_umap_data,  
     get_feature_analysis,
@@ -33,7 +33,7 @@ def convert_to_h264(input_path: str, output_path: str):
 
 # UI Setup
 st.set_page_config(page_title="Sperm Motility Analyzer", layout="wide")
-st.title("🧬 Sperm Motility Classification & Trajectory Viewer")
+st.title("Motility Classification Results (400 Patients)")
 
 # Clear results button in sidebar
 if st.sidebar.button("🗑️ Clear Results"):
@@ -71,8 +71,7 @@ with tab1:
             total_tracks = comparison_stats['training_total']
             dist_data = comparison_stats['training_distribution']
             
-            # Display percentages as large, bold text with cutoff ranges
-            st.markdown("**📊 Training Data Distribution**")
+           
             
             # Get feature analysis for cutoffs
             feature_stats, cutoffs = get_feature_analysis(training_data)
@@ -306,7 +305,7 @@ with tab2:
     st.subheader("📊 Individual vs. Population Analysis")
     
     # Upload section
-    st.markdown("**📤 Upload Files**")
+
     col1, col2 = st.columns(2)
     with col1:
         json_file = st.file_uploader("Upload JSON", type=["json"])
@@ -369,10 +368,6 @@ with tab2:
         h264_path = st.session_state['h264_path']
         preds_csv = st.session_state['preds_csv']
         participant_id = st.session_state['participant_id']
-        
-
-        
-        # Debug information
         
         # UMAP Visualization
         
@@ -464,6 +459,17 @@ with tab2:
         else:
             st.warning("UMAP coordinates not available.")
         
+        # Video display below UMAP
+        st.markdown("**🎬 Full Trajectory Video Overlay**")
+        total_tracks = len(preds['track_id'].unique())
+        st.markdown(f"**Total Tracks Analyzed:** {total_tracks}")
+        
+        if os.path.exists(h264_path):
+            with open(h264_path, 'rb') as video_file:
+                st.video(video_file.read(), start_time=0)
+        else:
+            st.error("Video overlay not found.")
+        
 
         
         # Stacked Bar Chart Comparison
@@ -488,9 +494,9 @@ with tab2:
             # Map metric names to cluster IDs for color consistency
             metric_to_cluster = {
                 'progressive': 2,  # green cluster
-                'vigorous': 3,     # orange cluster  
-                'immotile': 0,     # blue cluster
-                'nonprogressive': 1 # red cluster
+                'vigorous': 0,     # orange cluster  
+                'immotile': 1,     # blue cluster
+                'nonprogressive': 3 # red cluster
             }
             
             # Add bars for current participant (stacked)
@@ -499,7 +505,7 @@ with tab2:
             
             for i, (metric, name) in enumerate(zip(metrics_order, metric_names)):
                 fig.add_trace(go.Bar(
-                    y=['Your Participant'],
+                    y=['Your Patient'],
                     x=[current_percentages[metric]],
                     orientation='h',
                     name=name,
@@ -526,7 +532,7 @@ with tab2:
                 ))
             
             fig.update_layout(
-                title="Sperm Motility Distribution Comparison",
+                title="% Breakdown of Motility Types vs. Typical (median)",
                 xaxis_title="Percentage (%)",
                 barmode='stack',
                 height=300,
@@ -543,11 +549,7 @@ with tab2:
             
             st.plotly_chart(fig, use_container_width=True, key="stacked_bar")
             
-            # Show summary comparison
           
-                
-                # Determine arrow color based on metric type and direction
-           
             
         except Exception as e:
             st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
@@ -615,8 +617,134 @@ with tab2:
             except Exception as e:
                 st.warning(f"⚠️ Could not load cluster distribution: {str(e)}")
         
+        # Feature Comparison by Cluster
+        st.markdown("**Average Feature Values by Cluster vs. Typical (Median) Feature Values by Cluster**")
+        try:
+            # Calculate typical patient feature profile
+            typical_profile, features_df = calculate_typical_patient_feature_profile()
+            
+            # Calculate current participant's average feature values per cluster
+            current_participant_features = {}
+            features = ['ALH', 'BCF', 'LIN', 'VCL', 'VSL', 'WOB', 'MAD', 'STR', 'VAP']
+            
+            for cluster in preds['subtype_label'].unique():
+                cluster_data = preds[preds['subtype_label'] == cluster]
+                current_participant_features[cluster] = {}
+                
+                for feature in features:
+                    if feature in cluster_data.columns:
+                        current_participant_features[cluster][feature] = cluster_data[feature].mean()
+                    else:
+                        current_participant_features[cluster][feature] = 0
+            
+            # Create tabs for each feature
+            feature_tabs = st.tabs(features)
+            
+            for i, feature in enumerate(features):
+                with feature_tabs[i]:
+                    # Create data for this feature
+                    feature_data = []
+                    for cluster in ['vigorous', 'progressive', 'nonprogressive', 'immotile']:
+                        if cluster in typical_profile and cluster in current_participant_features:
+                            typical_value = typical_profile[cluster][feature]
+                            current_value = current_participant_features[cluster][feature]
+                            
+                            feature_data.append({
+                                'Cluster': cluster,
+                                'Typical': typical_value,
+                                'Current': current_value
+                            })
+                    
+                    if feature_data:
+                        # Create DataFrame for this feature
+                        feature_df = pd.DataFrame(feature_data)
+                        
+                        # Create horizontal stacked bar chart similar to motility distribution
+                        fig = go.Figure()
+                        
+                        # Define cluster colors
+                        cluster_colors = {
+                            'vigorous': '#1f77b4',      # blue
+                            'progressive': '#2ca02c',   # green
+                            'nonprogressive': '#ff7f0e', # orange
+                            'immotile': '#d62728'       # red
+                        }
+                        
+                        # Create data for stacked bars
+                        current_data = []
+                        typical_data = []
+                        
+                        for row in feature_data:
+                            cluster = row['Cluster']
+                            current_data.append({
+                                'cluster': cluster,
+                                'value': row['Current'],
+                                'color': cluster_colors[cluster]
+                            })
+                            typical_data.append({
+                                'cluster': cluster,
+                                'value': row['Typical'],
+                                'color': cluster_colors[cluster]
+                            })
+                        
+                        # Add stacked bars for current participant
+                        for item in current_data:
+                            fig.add_trace(go.Bar(
+                                y=['Your Patient'],
+                                x=[item['value']],
+                                orientation='h',
+                                name=f"{item['cluster']}",
+                                text=f'{item["value"]:.2f}',
+                                textposition='inside',
+                                textfont=dict(color='white', size=10),
+                                marker_color=item['color'],
+                                showlegend=True
+                            ))
+                        
+                        # Add stacked bars for typical patient
+                        for item in typical_data:
+                            fig.add_trace(go.Bar(
+                                y=['Typical Patient'],
+                                x=[item['value']],
+                                orientation='h',
+                                name=f"Typical {item['cluster']}",
+                                text=f'{item["value"]:.2f}',
+                                textposition='inside',
+                                textfont=dict(color='white', size=10),
+                                marker_color=item['color'],
+                                showlegend=False,
+                                opacity = 0.7
+                            ))
+                        
+                        fig.update_layout(
+                            title=f"{feature} Feature Values by Cluster",
+                            xaxis_title=f"{feature} Value",
+                            barmode='stack',
+                            height=300,
+                            showlegend=True,
+                            legend=dict(
+                                orientation="h",
+                                yanchor="bottom",
+                                y=1.02,
+                                xanchor="right",
+                                x=1
+                            ),
+                            margin=dict(l=20, r=20, t=80, b=20)
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True, key=f"feature_{feature}")
+                        
+                        st.info("💡 Interpretation: This patient’s cluster average (x µm/s) vs. the median value for that cluster. ")
+                        
+                       
+                    else:
+                        st.info(f"No data available for {feature}")
+                
+        except Exception as e:
+            st.warning(f"⚠️ Could not load feature comparison: {str(e)}")
+        
         # Track Trajectory Viewer
-        st.subheader("**View Trajectory**")
+        st.subheader("**Trajectory Viewer**")
         # Create a dropdown for track selection
         available_tracks = sorted(preds['track_id'].unique())
         selected_track = st.selectbox(
@@ -701,13 +829,7 @@ with tab2:
         
 
         
-        # Full trajectory video overlay
-        st.markdown("**🎬 Full Trajectory Video Overlay**")
-        if os.path.exists(h264_path):
-            with open(h264_path, 'rb') as video_file:
-                st.video(video_file.read())
-        else:
-            st.error("Video overlay not found.")
+
         
         # Download results
         st.markdown("**📥 Download Results**")
