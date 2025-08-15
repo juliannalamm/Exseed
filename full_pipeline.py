@@ -16,7 +16,8 @@ import plotly.express as px
 # =========================
 # Config (edit if needed)
 # =========================
-MODEL_PATH = "trained_gmm_model.pkl"  # expected keys: gmm, scaler, cluster_to_label, features, (optional) umap_model
+# Use absolute path for better compatibility with Streamlit Cloud
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trained_gmm_model.pkl")  # expected keys: gmm, scaler, cluster_to_label, features, (optional) umap_model
 TRAIL_LEN = 40
 LINE_THICKNESS = 2
 POINT_RADIUS = 3
@@ -93,6 +94,165 @@ def json_to_df(json_file_path: str, participant_id: str):
 # =========================
 # 2) GMM Prediction (+UMAP)
 # =========================
+def recreate_model_from_training_data():
+    """
+    Fallback function to recreate the GMM model from training data if pickle loading fails.
+    This is a last resort when the pickle file is completely incompatible.
+    """
+    try:
+        import pandas as pd
+        from sklearn.mixture import GaussianMixture
+        from sklearn.preprocessing import MinMaxScaler
+        import umap
+        
+        print("🔄 Attempting to recreate model from training data...")
+        
+        # Load training data
+        if not os.path.exists("train_track_df.csv"):
+            raise FileNotFoundError("train_track_df.csv not found")
+        
+        train_df = pd.read_csv("train_track_df.csv")
+        
+        # Define features (EXACTLY as in notebook)
+        features = ['ALH', 'BCF', 'LIN', 'MAD', 'STR', 'VAP', 'VCL', 'VSL', 'WOB']
+        
+        # Check if features exist
+        missing_features = set(features) - set(train_df.columns)
+        if missing_features:
+            raise ValueError(f"Missing features in training data: {missing_features}")
+        
+        # Prepare data (EXACTLY as in notebook)
+        X = train_df[features].dropna()
+        
+        # Scale features (EXACTLY as in notebook - MinMaxScaler, not StandardScaler)
+        scaler = MinMaxScaler()
+        X_scaled = scaler.fit_transform(X)
+        
+        # Train GMM (EXACTLY as in notebook)
+        gmm = GaussianMixture(n_components=4, covariance_type='full', random_state=42)
+        gmm.fit(X_scaled)
+        
+        # Create cluster to label mapping (EXACTLY as in notebook)
+        cluster_to_label = {
+            0: 'vigorous',  # high vcl, highest alh
+            1: 'immotile',  # high vcl, higher lin, highr wob, higher str
+            2: 'progressive',
+            3: 'nonprogressive'
+        }
+        
+        # Train UMAP (EXACTLY as in notebook)
+        umap_model = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+        umap_embedding = umap_model.fit_transform(X_scaled)
+        
+        # Create model data structure
+        model_data = {
+            'gmm': gmm,
+            'scaler': scaler,
+            'cluster_to_label': cluster_to_label,
+            'features': features,
+            'umap_model': umap_model
+        }
+        
+        print("✅ Successfully recreated model from training data")
+        return model_data
+        
+    except Exception as e:
+        print(f"❌ Failed to recreate model: {e}")
+        return None
+
+def load_model_robust(model_path: str):
+    """
+    Robust model loading with multiple fallback strategies for pickle compatibility.
+    """
+    import pickle
+    import warnings
+    
+    # Strategy 1: Standard pickle loading
+    try:
+        with open(model_path, 'rb') as f:
+            model_data = pickle.load(f)
+        print("✅ Model loaded successfully with standard pickle")
+        return model_data
+    except Exception as e:
+        print(f"⚠️ Standard pickle failed: {e}")
+    
+    # Strategy 2: Try with different pickle protocols
+    try:
+        with open(model_path, 'rb') as f:
+            model_data = pickle.load(f, encoding='latin1')
+        print("✅ Model loaded with latin1 encoding")
+        return model_data
+    except Exception as e:
+        print(f"⚠️ Latin1 encoding failed: {e}")
+    
+    # Strategy 3: Try joblib (often more robust for scikit-learn objects)
+    try:
+        import joblib
+        model_data = joblib.load(model_path)
+        print("✅ Model loaded successfully with joblib")
+        return model_data
+    except Exception as e:
+        print(f"⚠️ Joblib loading failed: {e}")
+    
+    # Strategy 4: Try with warnings suppressed (for deprecation warnings)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with open(model_path, 'rb') as f:
+                model_data = pickle.load(f)
+        print("✅ Model loaded with warnings suppressed")
+        return model_data
+    except Exception as e:
+        print(f"⚠️ Warnings-suppressed loading failed: {e}")
+    
+    # Strategy 5: Try to load individual components
+    try:
+        print("🔄 Attempting to load model components individually...")
+        with open(model_path, 'rb') as f:
+            raw_data = f.read()
+        
+        # Try to extract basic components
+        import tempfile
+        import os
+        
+        # Create a temporary file to try different loading methods
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as tmp:
+            tmp.write(raw_data)
+            tmp_path = tmp.name
+        
+        try:
+            # Try with different pickle versions
+            import pickle5
+            with open(tmp_path, 'rb') as f:
+                model_data = pickle5.load(f)
+            print("✅ Model loaded with pickle5")
+            os.unlink(tmp_path)
+            return model_data
+        except ImportError:
+            print("pickle5 not available")
+        except Exception as e:
+            print(f"pickle5 loading failed: {e}")
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    
+    except Exception as e:
+        print(f"⚠️ Individual component loading failed: {e}")
+    
+    # Strategy 6: Recreate model from training data
+    print("🔄 All pickle loading strategies failed. Attempting to recreate model from training data...")
+    model_data = recreate_model_from_training_data()
+    if model_data:
+        return model_data
+    
+    # If all strategies fail, raise a comprehensive error
+    raise RuntimeError(
+        f"Failed to load model from {model_path}. "
+        "This is likely due to version incompatibility between the environment "
+        "where the model was trained and the current environment. "
+        "Try retraining the model in the current environment."
+    )
+
 def predict_sperm_motility(new_data: pd.DataFrame,
                            model_path: str = MODEL_PATH,
                            include_umap: bool = True) -> pd.DataFrame:
@@ -103,8 +263,8 @@ def predict_sperm_motility(new_data: pd.DataFrame,
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
-    with open(model_path, 'rb') as f:
-        model_data = pickle.load(f)
+    # Use robust loading function
+    model_data = load_model_robust(model_path)
 
     gmm = model_data['gmm']
     scaler = model_data['scaler']
@@ -138,14 +298,14 @@ def predict_sperm_motility(new_data: pd.DataFrame,
                 train_df = pd.read_csv("train_track_df.csv")
                 
                 # Check if this participant exists in training data
-                participant_id = new_data_df['participant_id'].iloc[0] if 'participant_id' in new_data_df.columns else None
+                participant_id = new_data['participant_id'].iloc[0] if 'participant_id' in new_data.columns else None
                 
                 if participant_id and participant_id in train_df['participant_id'].values:
                     # Get existing UMAP coordinates for this participant
                     existing_data = train_df[train_df['participant_id'] == participant_id]
                     
                     # Match tracks by track_id
-                    merged_data = new_data_df.merge(
+                    merged_data = new_data.merge(
                         existing_data[['track_id', 'umap_1', 'umap_2']], 
                         on='track_id', 
                         how='left'

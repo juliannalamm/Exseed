@@ -274,11 +274,13 @@ def suggest_gmm_based_cutoffs(training_data_df, features):
     
     # Load the trained GMM model
     try:
-        with open("trained_gmm_model.pkl", "rb") as f:
-            model_data = pickle.load(f)
-            gmm_model = model_data['gmm']
-            scaler = model_data['scaler']
-            print("✅ Successfully loaded GMM model")
+        # Use the same robust loading function from full_pipeline
+        from full_pipeline import load_model_robust
+        model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trained_gmm_model.pkl")
+        model_data = load_model_robust(model_path)
+        gmm_model = model_data['gmm']
+        scaler = model_data['scaler']
+        print("✅ Successfully loaded GMM model")
     except Exception as e:
         print(f"⚠️ Warning: Could not load GMM model ({e})")
         return {}
