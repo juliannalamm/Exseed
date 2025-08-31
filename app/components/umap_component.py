@@ -2,7 +2,16 @@
 import dash
 from dash import dcc, html, Input, Output
 import plotly.graph_objects as go
-from ..datastore import POINTS
+import sys
+import os
+
+# Handle imports for both local development and container
+try:
+    from ..datastore import POINTS
+except ImportError:
+    # For local development
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from datastore import POINTS
 
 def create_umap_figure():
     """Create the UMAP scatter plot figure"""

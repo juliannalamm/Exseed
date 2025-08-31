@@ -1,8 +1,21 @@
 # Main Dash app that orchestrates all components
 import dash
 from dash import html
-from app.components.umap_component import create_umap_component
-from app.components.trajectory_component import create_trajectory_component, register_trajectory_callbacks
+import sys
+import os
+
+# Add the current directory to Python path for local development
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Handle imports for both local development and container
+try:
+    from components.umap_component import create_umap_component
+    from components.trajectory_component import create_trajectory_component, register_trajectory_callbacks
+except ImportError:
+    # For container environment
+    from app.components.umap_component import create_umap_component
+    from app.components.trajectory_component import create_trajectory_component, register_trajectory_callbacks
 
 # ---------- App ----------
 app = dash.Dash(__name__)

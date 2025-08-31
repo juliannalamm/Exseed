@@ -3,7 +3,16 @@ import dash
 from dash import dcc, html, Input, Output, State, callback_context
 import plotly.graph_objects as go
 import numpy as np
-from ..datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD
+import sys
+import os
+
+# Handle imports for both local development and container
+try:
+    from ..datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD
+except ImportError:
+    # For local development
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD
 
 def trajectory_fig_centered(traj, center, view_mode, title):
     """

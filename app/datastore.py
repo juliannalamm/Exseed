@@ -3,11 +3,21 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+import os
 
-# ---------- Hardcoded paths ----------
-POINTS_CSV  = Path("train_track_df.csv")     # must contain: umap_1, umap_2, track_id, participant_id, subtype_label
-FRAMES_ROOT = Path("parquet_data")           # partitions: participant=<ID>/frames.parquet
-# -------------------------------------
+# ---------- GCS Configuration ----------
+BUCKET = os.getenv('DATA_BUCKET', 'dash-data-cisc5550')  # Default bucket
+USING_GCS = True  # Always use GCS for both local and deployed
+
+def _csv_uri() -> str:
+    return f"gs://{BUCKET}/train_track_df.csv"
+
+def _parquet_glob() -> str:
+    # matches participant=<ID>/frames.parquet
+    return f"gs://{BUCKET}/parquet_data/participant=*/frames.parquet"
+
+def _participant_parquet(participant_id: str) -> str:
+    return f"gs://{BUCKET}/parquet_data/participant={participant_id}/frames.parquet"
 
 # ---------- FOV / view settings ----------
 FOV_QUANTILE   = 0.95   # fixed "Compare" FOV = p95 of half-spans (change to 0.99 if you still see clipping)
@@ -16,17 +26,18 @@ AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch th
 # ----------------------------------------
 
 # ---------- Load UMAP points ----------
-POINTS = pd.read_csv(POINTS_CSV)[["umap_1", "umap_2", "track_id", "participant_id", "subtype_label"]]
+print(f">>> DATA SOURCE: {_csv_uri()}")
+POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "track_id", "participant_id", "subtype_label"]]
 
 # ---------- Precompute per-track centers & spans; compute fixed FOV ----------
-def build_track_index(frames_root: Path):
+def build_track_index():
     """
     Returns:
       idx_df (pandas): [participant_id, track_id, cx, cy, half_span]
       view_half_fixed (float): fixed half-range for 'Compare' mode from quantile
       view_half_max   (float): global max half-range (useful if you want 'No-clip fixed')
     """
-    pattern = str(frames_root / "participant=*/frames.parquet")
+    pattern = _parquet_glob()
     
     lf = pl.scan_parquet(pattern)
 
@@ -62,8 +73,8 @@ def build_track_index(frames_root: Path):
     view_half_max   = max(float(hs.max()), MIN_VIEW_HALF)
     return df, view_half_fixed, view_half_max
 
-# Use local paths for now
-TRACK_IDX, VIEW_HALF_FIXED, VIEW_HALF_MAX = build_track_index(FRAMES_ROOT)
+# Build track index from GCS
+TRACK_IDX, VIEW_HALF_FIXED, VIEW_HALF_MAX = build_track_index()
 
 # Fast lookups
 CENTER_LOOKUP = {(r.participant_id, r.track_id): (float(r.cx), float(r.cy))
@@ -74,14 +85,16 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
 # ---------- Data access ----------
 def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
     """Fetch a single track's frames from the participant Parquet."""
-    p = FRAMES_ROOT / f"participant={participant_id}" / "frames.parquet"
-    if not p.exists():
+    p = _participant_parquet(participant_id)
+    try:
+        df = pl.read_parquet(p)
+        out = (
+            df.filter(pl.col("track_id") == track_id)
+              .sort("frame_num")
+              .select(["frame_num", "x", "y"])
+              .to_pandas()
+        )
+        return out
+    except Exception as e:
+        print(f"Error reading trajectory for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])
-    df = pl.read_parquet(p)
-    out = (
-        df.filter(pl.col("track_id") == track_id)
-          .sort("frame_num")
-          .select(["frame_num", "x", "y"])
-          .to_pandas()
-    )
-    return out
