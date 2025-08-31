@@ -5,19 +5,28 @@ import numpy as np
 from pathlib import Path
 import os
 
-# ---------- GCS Configuration ----------
+# ---------- Data Source Configuration ----------
 BUCKET = os.getenv('DATA_BUCKET', 'dash-data-cisc5550')  # Default bucket
-USING_GCS = True  # Always use GCS for both local and deployed
+USING_GCS = os.getenv('USE_GCS', 'true').lower() == 'true'  # Toggle between local and GCS
 
 def _csv_uri() -> str:
-    return f"gs://{BUCKET}/train_track_df.csv"
+    if USING_GCS:
+        return f"gs://{BUCKET}/train_track_df.csv"
+    else:
+        return str(Path("../train_track_df.csv"))
 
 def _parquet_glob() -> str:
     # matches participant=<ID>/frames.parquet
-    return f"gs://{BUCKET}/parquet_data/participant=*/frames.parquet"
+    if USING_GCS:
+        return f"gs://{BUCKET}/parquet_data/participant=*/frames.parquet"
+    else:
+        return str(Path("../parquet_data") / "participant=*/frames.parquet")
 
 def _participant_parquet(participant_id: str) -> str:
-    return f"gs://{BUCKET}/parquet_data/participant={participant_id}/frames.parquet"
+    if USING_GCS:
+        return f"gs://{BUCKET}/parquet_data/participant={participant_id}/frames.parquet"
+    else:
+        return str(Path("../parquet_data") / f"participant={participant_id}" / "frames.parquet")
 
 # ---------- FOV / view settings ----------
 FOV_QUANTILE   = 0.95   # fixed "Compare" FOV = p95 of half-spans (change to 0.99 if you still see clipping)
@@ -27,6 +36,7 @@ AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch th
 
 # ---------- Load UMAP points ----------
 print(f">>> DATA SOURCE: {_csv_uri()}")
+print(f">>> USING GCS: {USING_GCS}")
 POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "track_id", "participant_id", "subtype_label"]]
 
 # ---------- Precompute per-track centers & spans; compute fixed FOV ----------
