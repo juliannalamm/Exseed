@@ -1,0 +1,9 @@
+dash
+plotly
+pandas
+polars
+numpy
+gunicorn
+pyarrow
+gcsfs
+fsspec
