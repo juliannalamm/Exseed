@@ -39,6 +39,23 @@ def create_umap_figure():
         xaxis_title="UMAP-1", yaxis_title="UMAP-2",
         uirevision="umap-static",
         showlegend=True,  # Show legend for discrete colors
+        # Chart background customization
+        paper_bgcolor="black",  # Outer chart background
+        plot_bgcolor="#000000",  # Inner plot area background
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="#333333",
+            zeroline=False,
+            color="white",
+            title_font_color="white",
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="#333333",
+            zeroline=False,
+            color="white",
+            title_font_color="white",
+        ),
     )
     return fig
 

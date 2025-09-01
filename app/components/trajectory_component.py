@@ -8,11 +8,11 @@ import os
 
 # Handle imports for both local development and container
 try:
-    from ..datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP
+    from ..datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP, POINTS
 except ImportError:
     # For local development
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP
+    from datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP, POINTS
 
 def trajectory_fig_centered(traj, center, view_mode, title):
     """
@@ -70,16 +70,50 @@ def trajectory_fig_centered(traj, center, view_mode, title):
         title=show_title,
         margin=dict(l=10, r=10, t=40, b=10),
         uirevision="traj-static",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="black",  # Outer chart background
+        plot_bgcolor="#000000",  # Inner plot area background
         showlegend=False,
     )
     return fig
 
+def get_default_trajectory():
+    """Get the first available trajectory for initial display"""
+    if POINTS.empty:
+        return go.Figure().update_layout(
+            title="No data available",
+            margin=dict(l=10, r=10, t=40, b=10),
+            paper_bgcolor="black",
+            plot_bgcolor="#000000",
+            font=dict(color="white"),
+        )
+    
+    # Get the first point from the UMAP data
+    first_point = POINTS.iloc[0]
+    track_id = first_point["track_id"]
+    participant_id = first_point["participant_id"]
+    subtype = first_point["subtype_label"]
+    
+    # Get the trajectory data
+    traj = get_trajectory(track_id, participant_id)
+    center = CENTER_LOOKUP.get((participant_id, track_id))
+    title = f"{track_id} (class={subtype})"
+    
+    return trajectory_fig_centered(traj, center, "auto", title)
+
 def create_trajectory_component():
     """Create the trajectory viewer component with controls"""
+    # Get default trajectory info
+    if not POINTS.empty:
+        first_point = POINTS.iloc[0]
+        track_id = first_point["track_id"]
+        participant_id = first_point["participant_id"]
+        traj = get_trajectory(track_id, participant_id)
+        default_meta = f"Frames: {len(traj)} • Participant: {participant_id} • View: auto"
+    else:
+        default_meta = "No data available"
+    
     return html.Div(children=[
-        html.Div(id="traj-meta", style={"marginBottom": "8px", "fontSize": "14px"}),
+        html.Div(id="traj-meta", style={"marginBottom": "8px", "fontSize": "14px", "color": "white"}, children=default_meta),
         # view mode toggle
         html.Div([
             dcc.RadioItems(
@@ -90,21 +124,23 @@ def create_trajectory_component():
                 ],
                 value="auto",
                 inline=True,
-                style={"fontSize":"13px", "marginBottom":"6px"}
+                style={
+                    "fontSize":"13px", 
+                    "marginBottom":"6px",
+                    "color": "white",
+                    "backgroundColor": "transparent"
+                }
             )
         ]),
         dcc.Graph(
             id="traj-view",
             style={"height": "380px"},
             config={"responsive": False},
-            figure=go.Figure().update_layout(
-                title="Hover or click a point to view its trajectory",
-                margin=dict(l=10, r=10, t=40, b=10)
-            )
+            figure=get_default_trajectory()
         ),
         html.Div(
             f"Fixed half-range (compare mode): {VIEW_HALF_FIXED:.1f} px  •  Quantile=0.95",
-            style={"marginTop":"6px", "fontSize":"12px", "color":"#666"}
+            style={"marginTop":"6px", "fontSize":"12px", "color":"#cccccc"}
         ),
     ])
 

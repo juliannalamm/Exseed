@@ -29,7 +29,7 @@ app.layout = html.Div(
         "padding": "12px",
         "alignItems": "start",
         "minHeight": "100vh",
-        "backgroundColor": "#f5f5f5",
+        "backgroundColor": "#000000",
     },
     children=[
         # UMAP component (left side)
