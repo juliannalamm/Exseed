@@ -3,30 +3,28 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
-import os
+from typing import Dict, Tuple
 
 # ---------- Data Source Configuration ----------
-BUCKET = os.getenv('DATA_BUCKET', 'dash-data-cisc5550')  # Default bucket
-USING_GCS = os.getenv('USE_GCS', 'true').lower() == 'true'  # Toggle between local and GCS
+# Check if we're in container (files in /app) or local development (files in parent)
+def _get_data_path() -> Path:
+    """Determine the correct data path for current environment."""
+    if Path("train_track_df.csv").exists():
+        return Path(".")  # Container
+    else:
+        return Path("..")  # Local development
+
+DATA_PATH = _get_data_path()
 
 def _csv_uri() -> str:
-    if USING_GCS:
-        return f"gs://{BUCKET}/train_track_df.csv"
-    else:
-        return str(Path("../train_track_df.csv"))
+    return str(DATA_PATH / "train_track_df.csv")
 
 def _parquet_glob() -> str:
     # matches participant=<ID>/frames.parquet
-    if USING_GCS:
-        return f"gs://{BUCKET}/parquet_data/participant=*/frames.parquet"
-    else:
-        return str(Path("../parquet_data") / "participant=*/frames.parquet")
+    return str(DATA_PATH / "parquet_data" / "participant=*/frames.parquet")
 
 def _participant_parquet(participant_id: str) -> str:
-    if USING_GCS:
-        return f"gs://{BUCKET}/parquet_data/participant={participant_id}/frames.parquet"
-    else:
-        return str(Path("../parquet_data") / f"participant={participant_id}" / "frames.parquet")
+    return str(DATA_PATH / "parquet_data" / f"participant={participant_id}" / "frames.parquet")
 
 # ---------- FOV / view settings ----------
 FOV_QUANTILE   = 0.95   # fixed "Compare" FOV = p95 of half-spans (change to 0.99 if you still see clipping)
@@ -36,7 +34,6 @@ AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch th
 
 # ---------- Load UMAP points ----------
 print(f">>> DATA SOURCE: {_csv_uri()}")
-print(f">>> USING GCS: {USING_GCS}")
 POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "track_id", "participant_id", "subtype_label"]]
 
 # ---------- Precompute per-track centers & spans; compute fixed FOV ----------
@@ -83,7 +80,7 @@ def build_track_index():
     view_half_max   = max(float(hs.max()), MIN_VIEW_HALF)
     return df, view_half_fixed, view_half_max
 
-# Build track index from GCS
+# Build track index
 TRACK_IDX, VIEW_HALF_FIXED, VIEW_HALF_MAX = build_track_index()
 
 # Fast lookups
@@ -106,5 +103,5 @@ def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
         )
         return out
     except Exception as e:
-        print(f"Error reading trajectory for {participant_id}/{track_id}: {e}")
+        print(f"Error reading trajectory data for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])

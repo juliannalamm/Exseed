@@ -5,5 +5,3 @@ polars
 numpy
 gunicorn
 pyarrow
-gcsfs
-fsspec
