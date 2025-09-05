@@ -60,29 +60,8 @@ app.layout = html.Div(
             html.Div(id="embedding-content", children=create_umap_component())
         ]),
         
-        # Trajectory component (right side) with tabs
-        html.Div([
-            dcc.Tabs(
-                id="trajectory-tabs",
-                value="umap-traj-tab",
-                children=[
-                    dcc.Tab(
-                        label="UMAP Trajectory",
-                        value="umap-traj-tab",
-                        style={"backgroundColor": "#1a1a1a", "color": "white"},
-                        selected_style={"backgroundColor": "#2a2a2a", "color": "white"}
-                    ),
-                    dcc.Tab(
-                        label="t-SNE Trajectory",
-                        value="tsne-traj-tab",
-                        style={"backgroundColor": "#1a1a1a", "color": "white"},
-                        selected_style={"backgroundColor": "#2a2a2a", "color": "white"}
-                    ),
-                ],
-                style={"backgroundColor": "#000000"}
-            ),
-            html.Div(id="trajectory-content", children=create_trajectory_component())
-        ]),
+        # Trajectory component (right side) - switches between UMAP and t-SNE trajectory viewers
+        html.Div(id="trajectory-content", children=create_trajectory_component()),
         
         # Loading overlay for app startup
         html.Div(
@@ -175,18 +154,19 @@ def update_embedding_content(active_tab):
     else:
         return create_umap_component()  # Default fallback
 
-# Callback to handle tab switching between trajectory components
+# Callback to switch trajectory component based on active embedding tab
 @app.callback(
     Output("trajectory-content", "children"),
-    Input("trajectory-tabs", "value")
+    Input("embedding-tabs", "value")
 )
 def update_trajectory_content(active_tab):
-    if active_tab == "umap-traj-tab":
+    if active_tab == "umap-tab":
         return create_trajectory_component()
-    elif active_tab == "tsne-traj-tab":
+    elif active_tab == "tsne-tab":
         return create_tsne_trajectory_component()
     else:
         return create_trajectory_component()  # Default fallback
+
 
 # Callback to hide loading overlay after timer
 @app.callback(

@@ -87,7 +87,7 @@ def get_default_trajectory():
             font=dict(color="white"),
         )
     
-    # Get the first point from the UMAP data
+    # Get the first point from the data
     first_point = POINTS.iloc[0]
     track_id = first_point["track_id"]
     participant_id = first_point["participant_id"]

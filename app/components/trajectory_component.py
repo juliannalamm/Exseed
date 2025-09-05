@@ -169,3 +169,9 @@ def register_trajectory_callbacks(app):
         title  = f"{track_id}  (class={klass})"
         meta   = f"Frames: {len(traj)} • Participant: {participant_id} • View: {view_mode}"
         return trajectory_fig_centered(traj, center, view_mode, title), meta
+
+def register_tsne_trajectory_callbacks(app):
+    """Register the t-SNE trajectory viewer callbacks - this will be called dynamically"""
+    # This function is kept for compatibility but the actual callback registration
+    # is handled by the unified callback in register_trajectory_callbacks
+    pass
