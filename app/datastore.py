@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 # Check if we're in container (files in /app) or local development (files in parent)
 def _get_data_path() -> Path:
     """Determine the correct data path for current environment."""
-    if Path("train_track_df.csv").exists():
+    if Path("star_spin_track_df.csv").exists():
         return Path(".")  # Container
     else:
         return Path("..")  # Local development
@@ -17,7 +17,7 @@ def _get_data_path() -> Path:
 DATA_PATH = _get_data_path()
 
 def _csv_uri() -> str:
-    return str(DATA_PATH / "train_track_df.csv")
+    return str(DATA_PATH / "star_spin_track_df.csv")
 
 def _parquet_glob() -> str:
     # matches participant=<ID>/frames.parquet
