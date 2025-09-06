@@ -162,7 +162,8 @@ def register_tsne_trajectory_callbacks(app):
             raise dash.exceptions.PreventUpdate
 
         p = ev["points"][0]
-        track_id, participant_id, klass = p["customdata"]
+        customdata = p["customdata"]
+        track_id, participant_id, klass = customdata[0], customdata[1], customdata[2]
 
         traj = get_trajectory(track_id, participant_id)
         center = CENTER_LOOKUP.get((participant_id, track_id))  # may be None; handled inside
