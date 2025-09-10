@@ -29,17 +29,9 @@ def create_tsne_figure():
                 mode="markers",
                 marker=dict(size=4, opacity=0.75),
                 name=str(subtype),  # Legend label
-                customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label",
-                                             "P_rapid_progressive","P_immotile","P_nonprogressive","P_progressive","P_cluster_4"]].values,
+                customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label"]].values,
                 hovertemplate="<b>Track:</b> %{customdata[0]}<br>" +
-                             "<b>Class:</b> %{customdata[2]}<br>" +
-                             "<b>Probabilities:</b><br>" +
-                             "• Rapid Progressive: %{customdata[3]:.3f}<br>" +
-                             "• Immotile: %{customdata[4]:.3f}<br>" +
-                             "• Nonprogressive: %{customdata[5]:.3f}<br>" +
-                             "• Progressive: %{customdata[6]:.3f}<br>" +
-                             "• Star-spin: %{customdata[7]:.3f}<extra></extra>",
-            )
+                             "<b>Class:</b> %{customdata[2]}<br>")
         )
     
     fig.update_layout(

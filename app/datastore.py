@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 # Check if we're in container (files in /app) or local development (files in parent)
 def _get_data_path() -> Path:
     """Determine the correct data path for current environment."""
-    if Path("tsne_and_umap_k5.csv").exists():
+    if Path("kmeans_results.csv").exists():
         return Path(".")  # Container
     else:
         return Path("..")  # Local development
@@ -17,7 +17,7 @@ def _get_data_path() -> Path:
 DATA_PATH = _get_data_path()
 
 def _csv_uri() -> str:
-    return str(DATA_PATH / "tsne_and_umap_k5.csv")
+    return str(DATA_PATH / "kmeans_results.csv")
 
 def _parquet_glob() -> str:
     # matches participant=<ID>/frames.parquet
@@ -35,14 +35,12 @@ AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch th
 # ---------- Load UMAP points ----------
 print(f">>> DATA SOURCE: {_csv_uri()}")
 try:
-    POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label", 
-                                      "P_rapid_progressive", "P_immotile", "P_nonprogressive", "P_progressive", "P_cluster_4"]]
+    POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label"]]
     print(f">>> LOADED {len(POINTS)} points successfully")
 except Exception as e:
     print(f">>> ERROR loading data: {e}")
     # Fallback to empty dataframe
-    POINTS = pd.DataFrame(columns=["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label",
-                                   "P_rapid_progressive", "P_immotile", "P_nonprogressive", "P_progressive", "P_cluster_4"])
+    POINTS = pd.DataFrame(columns=["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label"])
 
 # ---------- Precompute per-track centers & spans; compute fixed FOV ----------
 def build_track_index():
