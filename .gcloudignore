@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# Notebooks
+*.ipynb
+notebooks/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files that don't need to be in the build
+*.mp4
+*.png
+*.pdf
+2025-07-23+-+Data+for+Julianna/
+example_data/
+combined_views_tracks/
+
+# Models - keep only necessary ones
+cluster.ipynb
+gmm.ipynb
+
+# Other
+.DS_Store
+README.md
+render.yaml
+
+# Scripts not needed for deployment
+scripts/
+hover_streamlit.py
+combine_views.py
+full_pipeline.py
+participant_metrics.py

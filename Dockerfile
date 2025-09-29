@@ -14,13 +14,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and data
 COPY app/ ./app/
 COPY train_track_df.csv ./
+COPY kmeans_results.csv ./
 COPY parquet_data/ ./parquet_data/
 
 # Set Python path to include the current directory
 ENV PYTHONPATH=/app
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8050
 
 # Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "app.dash_app:server"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8050", "--workers", "1", "--timeout", "120", "app.dash_app:server"]

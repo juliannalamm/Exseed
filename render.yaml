@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: exseed-dashboard
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8050
