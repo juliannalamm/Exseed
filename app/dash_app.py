@@ -1,5 +1,6 @@
 # Main Dash app that orchestrates all components
 import dash
+import dash_bootstrap_components as dbc
 from dash import html, Input, Output, dcc
 import sys
 import os
@@ -10,58 +11,49 @@ if __name__ == "__main__":
 
 # Handle imports for both local development and container
 try:
-    from components.umap_component import create_umap_component
     from components.tsne_component import create_tsne_component
-    from components.trajectory_component import create_trajectory_component, register_trajectory_callbacks
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
+    from components.header_component import create_header_component
 except ImportError:
     # For container environment
-    from app.components.umap_component import create_umap_component
     from app.components.tsne_component import create_tsne_component
-    from app.components.trajectory_component import create_trajectory_component, register_trajectory_callbacks
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
+    from app.components.header_component import create_header_component
 
 # ---------- App ----------
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
+app = dash.Dash(
+    __name__,
+    suppress_callback_exceptions=True,
+    external_stylesheets=[dbc.themes.DARKLY],
+)
 server = app.server
 
 app.layout = html.Div(
     style={
         "display": "grid",
-        "gridTemplateColumns": "2fr 1fr",
+        "gridTemplateColumns": "1fr",
         "gap": "16px",
-        "padding": "12px",
+        "padding": "0px",
         "alignItems": "start",
         "minHeight": "100vh",
-        "backgroundColor": "#000000",
+        "backgroundColor": "#0b1320",
     },
     children=[
-        # Embedding visualization component (left side) with tabs
-        html.Div([
-            dcc.Tabs(
-                id="embedding-tabs",
-                value="umap-tab",
-                children=[
-                    dcc.Tab(
-                        label="UMAP",
-                        value="umap-tab",
-                        style={"backgroundColor": "#1a1a1a", "color": "white"},
-                        selected_style={"backgroundColor": "#2a2a2a", "color": "white"}
-                    ),
-                    dcc.Tab(
-                        label="t-SNE",
-                        value="tsne-tab",
-                        style={"backgroundColor": "#1a1a1a", "color": "white"},
-                        selected_style={"backgroundColor": "#2a2a2a", "color": "white"}
-                    ),
-                ],
-                style={"backgroundColor": "#000000"}
-            ),
-            html.Div(id="embedding-content", children=create_umap_component())
-        ]),
-        
-        # Trajectory component (right side) - switches between UMAP and t-SNE trajectory viewers
-        html.Div(id="trajectory-content", children=create_trajectory_component()),
+        create_header_component(),
+        html.Div(
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "2fr 1fr",
+                "gap": "16px",
+                "padding": "12px",
+            },
+            children=[
+                html.Div([
+                    html.Div(id="embedding-content", children=create_tsne_component())
+                ]),
+                html.Div(id="trajectory-content", children=create_tsne_trajectory_component()),
+            ],
+        ),
         
         # Loading overlay for app startup
         html.Div(
@@ -137,35 +129,10 @@ app.index_string = '''
 </html>
 '''
 
-# Register all callbacks
-register_trajectory_callbacks(app)
+# Register t-SNE callbacks only
 register_tsne_trajectory_callbacks(app)
 
-# Callback to handle tab switching between UMAP and t-SNE
-@app.callback(
-    Output("embedding-content", "children"),
-    Input("embedding-tabs", "value")
-)
-def update_embedding_content(active_tab):
-    if active_tab == "umap-tab":
-        return create_umap_component()
-    elif active_tab == "tsne-tab":
-        return create_tsne_component()
-    else:
-        return create_umap_component()  # Default fallback
-
-# Callback to switch trajectory component based on active embedding tab
-@app.callback(
-    Output("trajectory-content", "children"),
-    Input("embedding-tabs", "value")
-)
-def update_trajectory_content(active_tab):
-    if active_tab == "umap-tab":
-        return create_trajectory_component()
-    elif active_tab == "tsne-tab":
-        return create_tsne_trajectory_component()
-    else:
-        return create_trajectory_component()  # Default fallback
+# No tab switching needed; t-SNE is fixed
 
 
 # Callback to hide loading overlay after timer

@@ -13,11 +13,23 @@ from full_pipeline import (
     MODEL_PATH
 )
 from participant_metrics import calculate_median_participant_metrics, get_metric_status, calculate_typical_patient_feature_profile
-from global_umap_utils import ( 
-    load_or_create_training_umap_data,  
-    get_feature_analysis,
-    create_single_feature_plot,
-    get_global_umap_comparison, cluster_colors
+try:
+    from global_umap_utils import (
+        load_or_create_training_umap_data,
+        get_feature_analysis,
+        create_single_feature_plot,
+        get_global_umap_comparison,
+        cluster_colors,
+    )
+except ModuleNotFoundError:
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "scripts"))
+    from global_umap_utils import (
+        load_or_create_training_umap_data,
+        get_feature_analysis,
+        create_single_feature_plot,
+        get_global_umap_comparison,
+        cluster_colors,
     )
 
 
