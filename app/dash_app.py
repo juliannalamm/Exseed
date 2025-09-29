@@ -38,7 +38,7 @@ app.layout = html.Div(
         "padding": "0",
         "alignItems": "stretch",
         "minHeight": "100vh",
-        "backgroundColor": "#0b1320",
+        "backgroundColor": "black",
     },
     children=[
         create_header_component(),

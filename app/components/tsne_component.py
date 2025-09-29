@@ -40,8 +40,8 @@ def create_tsne_figure():
         uirevision="tsne-static",
         showlegend=True,  # Show legend for discrete colors
         # Chart background customization
-        paper_bgcolor="black",  # Outer chart background
-        plot_bgcolor="#000000",  # Inner plot area background
+        paper_bgcolor="#1a1a1a",  # Outer chart background
+        plot_bgcolor="#1a1a1a",  # Inner plot area background
         legend=dict(
             font=dict(color="white"),
             bgcolor="rgba(0,0,0,0)",
@@ -70,12 +70,19 @@ def create_tsne_component():
             html.P("Interactive t-SNE visualization of sperm motility patterns", 
                    style={"color": "#cccccc", "marginBottom": "16px", "fontSize": "14px", "textAlign": "center"}),
         ]),
-        dcc.Graph(
-            id="tsne",
-            figure=create_tsne_figure(),
-            style={"height": "640px"},
-            config={"responsive": False},
-            clear_on_unhover=False,
+        html.Div(
+            dcc.Graph(
+                id="tsne",
+                figure=create_tsne_figure(),
+                style={"height": "500px"},
+                config={"responsive": False},
+                clear_on_unhover=False,
+            ),
+            style={
+                "borderRadius": "12px",
+                "overflow": "hidden",
+                "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
+            }
         )
     ])
 

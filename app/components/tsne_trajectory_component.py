@@ -53,8 +53,8 @@ def trajectory_fig_centered(traj, center):
     fig.update_layout(
         margin=dict(l=10, r=10, t=40, b=10),
         uirevision="traj-static",
-        paper_bgcolor="black",  # Outer chart background
-        plot_bgcolor="#000000",  # Inner plot area background
+        paper_bgcolor="#1a1a1a",  # Outer chart background
+        plot_bgcolor="#1a1a1a",  # Inner plot area background
         showlegend=False,
     )
     return fig
@@ -65,8 +65,8 @@ def get_default_trajectory():
         return go.Figure().update_layout(
             title="No data available",
             margin=dict(l=10, r=10, t=40, b=10),
-            paper_bgcolor="black",
-            plot_bgcolor="#000000",
+            paper_bgcolor="#1a1a1a",
+            plot_bgcolor="#1a1a1a",
             font=dict(color="white"),
         )
     
@@ -91,11 +91,18 @@ def create_tsne_trajectory_component():
         },
         children=[
             html.Div("Sperm Trajectory", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
-            dcc.Graph(
-                id="tsne-traj-view",
-                style={"height": "380px"},
-                config={"responsive": False},
-                figure=get_default_trajectory()
+            html.Div(
+                dcc.Graph(
+                    id="tsne-traj-view",
+                    style={"height": "380px"},
+                    config={"responsive": False},
+                    figure=get_default_trajectory()
+                ),
+                style={
+                    "borderRadius": "12px",
+                    "overflow": "hidden",
+                    "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
+                }
             ),
         ]
     )
