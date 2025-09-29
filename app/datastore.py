@@ -32,15 +32,24 @@ MIN_VIEW_HALF  = 10.0   # smallest half-range so tiny tracks remain visible
 AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch the frame)
 # ----------------------------------------
 
-# ---------- Load UMAP points ----------
+# ---------- Load points (t-SNE/UMAP + kinematic metrics) ----------
 print(f">>> DATA SOURCE: {_csv_uri()}")
+KINEMATIC_FEATURES = ["ALH", "BCF", "LIN", "MAD", "STR", "VAP", "VCL", "VSL", "WOB"]
+BASE_COLUMNS = ["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label"]
 try:
-    POINTS = pd.read_csv(_csv_uri())[["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label"]]
-    print(f">>> LOADED {len(POINTS)} points successfully")
+    _df = pd.read_csv(_csv_uri())
+    wanted = [c for c in BASE_COLUMNS + KINEMATIC_FEATURES if c in _df.columns]
+    if not wanted:
+        raise ValueError("No expected columns found in CSV")
+    POINTS = _df[wanted].copy()
+    # ensure numeric metrics
+    for c in KINEMATIC_FEATURES:
+        if c in POINTS.columns:
+            POINTS[c] = pd.to_numeric(POINTS[c], errors="coerce")
+    print(f">>> LOADED {len(POINTS)} points successfully | cols: {list(POINTS.columns)}")
 except Exception as e:
     print(f">>> ERROR loading data: {e}")
-    # Fallback to empty dataframe
-    POINTS = pd.DataFrame(columns=["umap_1", "umap_2", "tsne_1", "tsne_2", "track_id", "participant_id", "subtype_label"])
+    POINTS = pd.DataFrame(columns=BASE_COLUMNS + KINEMATIC_FEATURES)
 
 # ---------- Precompute per-track centers & spans; compute fixed FOV ----------
 def build_track_index():

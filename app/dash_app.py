@@ -14,11 +14,13 @@ try:
     from components.tsne_component import create_tsne_component
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from components.header_component import create_header_component
+    from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
 except ImportError:
     # For container environment
     from app.components.tsne_component import create_tsne_component
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from app.components.header_component import create_header_component
+    from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
 
 # ---------- App ----------
 app = dash.Dash(
@@ -30,28 +32,55 @@ server = app.server
 
 app.layout = html.Div(
     style={
-        "display": "grid",
-        "gridTemplateColumns": "1fr",
-        "gap": "16px",
-        "padding": "0px",
-        "alignItems": "start",
+        "display": "flex",
+        "flexDirection": "column",
+        "gap": "0",
+        "padding": "0",
+        "alignItems": "stretch",
         "minHeight": "100vh",
         "backgroundColor": "#0b1320",
     },
     children=[
         create_header_component(),
+        # Content area with padding
         html.Div(
             style={
-                "display": "grid",
-                "gridTemplateColumns": "2fr 1fr",
-                "gap": "16px",
-                "padding": "12px",
+                "display": "flex",
+                "flexDirection": "column",
+                "gap": "20px",
+                "padding": "20px 40px",
+                "flex": "1",
             },
             children=[
-                html.Div([
-                    html.Div(id="embedding-content", children=create_tsne_component())
-                ]),
-                html.Div(id="trajectory-content", children=create_tsne_trajectory_component()),
+                # Top row: t-SNE chart and trajectory chart side by side
+                html.Div(
+                    style={
+                        "display": "grid",
+                        "gridTemplateColumns": "2fr 1fr",
+                        "gap": "20px",
+                        "alignItems": "center",
+                    },
+                    children=[
+                        html.Div([
+                            html.Div(id="embedding-content", children=create_tsne_component())
+                        ]),
+                        html.Div(
+                            id="trajectory-content",
+                            children=[
+                                create_tsne_trajectory_component(),
+                            ],
+                        ),
+                    ],
+                ),
+                # Bottom row: bar chart
+                html.Div(
+                    style={
+                        "width": "100%",
+                    },
+                    children=[
+                        create_cluster_metrics_component(),
+                    ],
+                ),
             ],
         ),
         
@@ -102,7 +131,7 @@ app.layout = html.Div(
     ],
 )
 
-# Add CSS for spinner animation
+# Add CSS for spinner animation and tab styling
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -115,6 +144,19 @@ app.index_string = '''
             @keyframes spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
+            }
+            
+            /* Custom tab styling */
+            .tab {
+                color: black !important;
+            }
+            
+            .tab--selected {
+                color: white !important;
+            }
+            
+            .tab:hover {
+                color: white !important;
             }
         </style>
     </head>
@@ -129,8 +171,9 @@ app.index_string = '''
 </html>
 '''
 
-# Register t-SNE callbacks only
+# Register t-SNE callbacks and metrics tabs
 register_tsne_trajectory_callbacks(app)
+register_cluster_metrics_callbacks(app)
 
 # No tab switching needed; t-SNE is fixed
 

@@ -108,7 +108,6 @@ def create_trajectory_component():
         track_id = first_point["track_id"]
         participant_id = first_point["participant_id"]
         traj = get_trajectory(track_id, participant_id)
-        default_meta = f"Frames: {len(traj)} • Participant: {participant_id} • View: auto"
     else:
         default_meta = "No data available"
     
@@ -168,8 +167,7 @@ def register_trajectory_callbacks(app):
         traj = get_trajectory(track_id, participant_id)
         center = CENTER_LOOKUP.get((participant_id, track_id))  # may be None; handled inside
         title  = f"{track_id}  (class={klass})"
-        meta   = f"Frames: {len(traj)} • Participant: {participant_id} • View: {view_mode}"
-        return trajectory_fig_centered(traj, center, view_mode, title), meta
+        return trajectory_fig_centered(traj, center, view_mode, title)
 
 def register_tsne_trajectory_callbacks(app):
     """Register the t-SNE trajectory viewer callbacks - this will be called dynamically"""

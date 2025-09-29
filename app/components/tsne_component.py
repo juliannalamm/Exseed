@@ -42,16 +42,18 @@ def create_tsne_figure():
         # Chart background customization
         paper_bgcolor="black",  # Outer chart background
         plot_bgcolor="#000000",  # Inner plot area background
+        legend=dict(
+            font=dict(color="white"),
+            bgcolor="rgba(0,0,0,0)",
+        ),
         xaxis=dict(
-            showgrid=True,
-            gridcolor="#333333",
+            showgrid=False,
             zeroline=False,
             color="white",
             title_font_color="white",
         ),
         yaxis=dict(
-            showgrid=True,
-            gridcolor="#333333",
+            showgrid=False,
             zeroline=False,
             color="white",
             title_font_color="white",
@@ -61,11 +63,19 @@ def create_tsne_figure():
 
 def create_tsne_component():
     """Create the t-SNE component with graph"""
-    return dcc.Graph(
-        id="tsne",
-        figure=create_tsne_figure(),
-        style={"height": "640px"},
-        config={"responsive": False},
-        clear_on_unhover=False,
-    )
+    return html.Div([
+        html.Div([
+            html.H2("Sperm Motility Analysis", 
+                    style={"color": "white", "marginBottom": "8px", "fontSize": "24px", "fontWeight": "600", "textAlign": "center"}),
+            html.P("Interactive t-SNE visualization of sperm motility patterns", 
+                   style={"color": "#cccccc", "marginBottom": "16px", "fontSize": "14px", "textAlign": "center"}),
+        ]),
+        dcc.Graph(
+            id="tsne",
+            figure=create_tsne_figure(),
+            style={"height": "640px"},
+            config={"responsive": False},
+            clear_on_unhover=False,
+        )
+    ])
 
