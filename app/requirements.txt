@@ -2,7 +2,6 @@ dash
 dash-bootstrap-components
 plotly
 pandas
-polars
 numpy
 gunicorn
-pyarrow
+gcsfs

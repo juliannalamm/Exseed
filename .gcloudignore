@@ -29,6 +29,8 @@ notebooks/
 2025-07-23+-+Data+for+Julianna/
 example_data/
 combined_views_tracks/
+parquet_data/
+kmeans_results.csv
 
 # Models - keep only necessary ones
 cluster.ipynb
