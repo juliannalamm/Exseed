@@ -1,4 +1,4 @@
-# t-SNE scatter plot component
+# P/E axis scatter plot component
 import dash
 from dash import dcc, html, Input, Output, callback_context
 import plotly.graph_objects as go
@@ -13,8 +13,17 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from datastore import POINTS
 
-def create_tsne_figure():
-    """Create the t-SNE scatter plot figure"""
+# Color mapping for each motility type (matches t-SNE plot colors)
+SUBTYPE_COLORS = {
+    "progressive": "#636EFA",      # blue (Plotly default color 0)
+    "rapid_progressive": "#EF553B", # red (Plotly default color 1)
+    "non_progressive": "#00CC96",   # teal/green (Plotly default color 2)
+    "erratic": "#AB63FA",           # purple (Plotly default color 3)
+    "immotile": "#FFA15A"           # orange (Plotly default color 4)
+}
+
+def create_pe_axis_figure():
+    """Create the P/E axis scatter plot figure"""
     # Create discrete color mapping
     unique_subtypes = POINTS["subtype_label"].unique()
     
@@ -22,22 +31,25 @@ def create_tsne_figure():
     
     for i, subtype in enumerate(unique_subtypes):
         mask = POINTS["subtype_label"] == subtype
+        color = SUBTYPE_COLORS.get(subtype, "#636EFA")
         fig.add_trace(
             go.Scattergl(
-                x=POINTS.loc[mask, "tsne_1"], 
-                y=POINTS.loc[mask, "tsne_2"],
+                x=POINTS.loc[mask, "P_axis_byls"], 
+                y=POINTS.loc[mask, "E_axis_byls"],
                 mode="markers",
-                marker=dict(size=4, opacity=0.75),
+                marker=dict(size=4, opacity=0.75, color=color),
                 name=str(subtype),  # Legend label
-                customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label"]].values,
+                customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label","entropy"]].values,
                 hovertemplate="<b>Track:</b> %{customdata[0]}<br>" +
-                             "<b>Class:</b> %{customdata[2]}<br>")
+                             "<b>Class:</b> %{customdata[2]}<br>" +
+                             "<b>Entropy:</b> %{customdata[3]:.3f}<br>")
         )
     
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
-        xaxis_title="t-SNE-1", yaxis_title="t-SNE-2",
-        uirevision="tsne-static",
+        xaxis_title="Progressivity (P-axis)", 
+        yaxis_title="Erraticity (E-axis)",
+        uirevision="pe-axis-static",
         showlegend=True,  # Show legend for discrete colors
         # Chart background customization
         paper_bgcolor="#1a1a1a",  # Outer chart background
@@ -61,19 +73,19 @@ def create_tsne_figure():
     )
     return fig
 
-def create_tsne_component():
-    """Create the t-SNE component with graph"""
+def create_pe_axis_component():
+    """Create the P/E axis component with graph"""
     return html.Div([
         html.Div([
-            html.Div("Sperm Motility Clustered by Movement Type", 
+            html.Div("Progressivity vs Erraticity", 
                     style={"color": "white", "marginBottom": "4px", "fontSize": "14px", "fontWeight": "600", "textAlign": "center"}),
-            html.Div("Each point is an individual cell, hover over a point to view it's trajectory!", 
+            html.Div("Explore the relationship between forward progression and movement irregularity", 
                    style={"color": "#cccccc", "marginBottom": "16px", "fontSize": "12px", "textAlign": "center"}),
         ]),
         html.Div(
             dcc.Graph(
-                id="tsne",
-                figure=create_tsne_figure(),
+                id="pe-axis",
+                figure=create_pe_axis_figure(),
                 style={"height": "500px"},
                 config={"responsive": False},
                 clear_on_unhover=False,
@@ -85,4 +97,3 @@ def create_tsne_component():
             }
         )
     ])
-

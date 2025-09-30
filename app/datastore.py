@@ -63,6 +63,8 @@ AUTO_PAD       = 1.10   # padding for auto-fit (10% extra so tips don't touch th
 # ---------- Load points (t-SNE/UMAP + kinematic metrics) ----------
 print(f">>> DATA SOURCE: {_csv_uri()}")
 KINEMATIC_FEATURES = ["ALH", "BCF", "LIN", "MAD", "STR", "VAP", "VCL", "VSL", "WOB"]
+# Additional axis features for P/E plot
+AXIS_FEATURES = ["P_axis_byls", "E_axis_byls", "entropy"]
 # Felipe data uses 'fid' for track identifier
 BASE_COLUMNS = ["tsne_1", "tsne_2", "fid", "subtype_label"]
 try:
@@ -71,12 +73,12 @@ try:
     if "fid" in _df.columns:
         _df["track_id"] = _df["fid"].astype(str)
         _df["participant_id"] = _df["fid"].astype(str)
-    wanted = [c for c in BASE_COLUMNS + KINEMATIC_FEATURES + ["track_id", "participant_id"] if c in _df.columns]
+    wanted = [c for c in BASE_COLUMNS + KINEMATIC_FEATURES + AXIS_FEATURES + ["track_id", "participant_id"] if c in _df.columns]
     if not wanted:
         raise ValueError("No expected columns found in CSV")
     POINTS = _df[wanted].copy()
     # ensure numeric metrics
-    for c in KINEMATIC_FEATURES:
+    for c in KINEMATIC_FEATURES + AXIS_FEATURES:
         if c in POINTS.columns:
             POINTS[c] = pd.to_numeric(POINTS[c], errors="coerce")
     print(f">>> LOADED {len(POINTS)} points successfully | cols: {list(POINTS.columns)}")

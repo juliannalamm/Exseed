@@ -16,6 +16,19 @@ KINEMATIC_FEATURES = [
     "ALH", "BCF", "LIN", "MAD", "STR", "VAP", "VCL", "VSL", "WOB"
 ]
 
+# Feature definitions for hover tooltips
+FEATURE_DEFINITIONS = {
+    "ALH": "Amplitude of Lateral Head displacement - measures side-to-side head movement",
+    "BCF": "Beat-Cross Frequency - frequency of flagellar beats crossing the trajectory",
+    "LIN": "Linearity - straightness of the path (VSL/VCL)",
+    "MAD": "Mean Angular Displacement - average change in direction",
+    "STR": "Straightness - efficiency of forward progression (VSL/VAP)",
+    "VAP": "Average Path Velocity - speed along the smoothed path",
+    "VCL": "Curvilinear Velocity - speed along the actual path",
+    "VSL": "Straight Line Velocity - speed along the straight line",
+    "WOB": "Wobble - smoothness of trajectory (VAP/VCL)"
+}
+
 # Color mapping for each motility type (matches t-SNE plot colors)
 SUBTYPE_COLORS = {
     "progressive": "#636EFA",      # blue (Plotly default color 0)
@@ -156,50 +169,61 @@ def create_cluster_metrics_component():
     return html.Div(
         children=[
             html.H3(
-                "Click on the tabs below to explore the metrics associated with each motility type!",
-                style={
-                    "color": "white",
-                    "textAlign": "center",
-                    "marginBottom": "16px",
-                    "fontSize": "18px",
-                    "fontWeight": "500"
-                }
+               
             ),
-            dcc.Tabs(
-                id="metrics-tabs",
-                value=options[0][0],
+            html.Div(
+                style={"backgroundColor": "transparent"},
                 children=[
-                    dcc.Tab(
-                        label=label,
-                        value=val,
-                        selected_className="tab--selected",
-                        className="tab",
-                        selected_style={
-                            "color": "white",
-                            "background": "linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%)",
-                            "borderRadius": "25px",
-                            "fontWeight": "500"
+                    dcc.Tabs(
+                        id="metrics-tabs",
+                        value=options[0][0],
+                        colors={
+                            "border": "rgba(99, 110, 250, 0.3)",
+                            "primary": "#636EFA",
+                            "background": "rgba(99, 110, 250, 0.15)"
                         },
-                        style={
-                            "color": "white",
-                            "background": "linear-gradient(135deg, #404040 0%, #353535 100%)",
-                            "borderRadius": "25px",
-                            "fontWeight": "500"
-                        }
-                    ) for val, label in options
-                ],
+                        children=[
+                            dcc.Tab(
+                                label=label,
+                                value=val,
+                                className="custom-tab",
+                                selected_className="custom-tab--selected",
+                                style={
+                                    "background": "linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%)",
+                                    "border": "1px solid rgba(99, 110, 250, 0.5)",
+                                    "borderRadius": "25px",
+                                    "color": "white",
+                                    "padding": "10px 16px",
+                                    "marginRight": "12px",
+                                    "fontWeight": "500"
+                                },
+                                selected_style={
+                                    "backgroundColor": "rgba(99, 110, 250, 0.35)",
+                                    "border": "1px solid rgba(99, 110, 250, 0.6)",
+                                    "borderRadius": "25px",
+                                    "color": "white",
+                                    "padding": "10px 16px",
+                                    "marginRight": "12px",
+                                    "fontWeight": "600",
+                                    "boxShadow": "0 4px 12px rgba(99, 110, 250, 0.3)"
+                                }
+                            ) for val, label in options
+                        ],
+                    )
+                ]
             ),
             # Description box
             html.Div(
                 id="motility-description",
                 style={
-                    "backgroundColor": "#2a2a2a",
+                    "backgroundColor": "rgba(99, 110, 250, 0.15)",
                     "padding": "16px 20px",
-                    "borderRadius": "8px",
+                    "borderRadius": "12px",
                     "marginTop": "16px",
                     "marginBottom": "16px",
-                    "border": "1px solid #404040",
-                    "boxShadow": "0 2px 4px rgba(0, 0, 0, 0.2)"
+                    "border": "1px solid rgba(99, 110, 250, 0.3)",
+                    "boxShadow": "0 4px 8px rgba(99, 110, 250, 0.1)",
+                    "textAlign": "center"
                 },
                 children=[
                     html.P(
@@ -208,8 +232,7 @@ def create_cluster_metrics_component():
                             "color": "#e0e0e0",
                             "margin": "0",
                             "fontSize": "14px",
-                            "lineHeight": "1.6",
-                            "textAlign": "center"
+                            "lineHeight": "1.6"
                         }
                     )
                 ]
@@ -225,6 +248,7 @@ def create_cluster_metrics_component():
                     html.Div(
                         dcc.Graph(id="cluster-metrics", style={"height": "300px"}),
                         style={
+                            "backgroundColor": "#1a1a1a",
                             "borderRadius": "12px",
                             "overflow": "hidden",
                             "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
@@ -270,20 +294,41 @@ def register_cluster_metrics_callbacks(app):
         # Update kinematic chart
         stats = _cluster_means(active_subtype)
         stats = _minmax(stats)
+        
+        # Add feature definitions to hover text
+        stats["Definition"] = stats["Feature"].map(FEATURE_DEFINITIONS)
+        
         fig = px.bar(
             stats,
             x="Feature",
             y="Norm",
-            title=f"{active_subtype}: normalized (0-1) kinematic means",
+            title=f"{active_subtype}: Movement Metric Means",
             color_discrete_sequence=[subtype_color],
+            custom_data=["Definition"]
         )
+        fig.update_traces(
+            hovertemplate="<b>%{x}</b><br>" +
+                         "Value: %{y:.3f}<br>" +
+                         "<i>%{customdata[0]}</i>" +
+                         "<extra></extra>"
+        )
+        
+        # Format the subtype name for display (capitalize and remove underscores)
+        formatted_subtype = active_subtype.replace("_", " ").title()
+        
         fig.update_layout(
             margin=dict(l=10, r=10, t=40, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="white"),
             xaxis=dict(showgrid=False, zeroline=False),
-            yaxis=dict(showgrid=False, zeroline=False, title="0-1 scale"),
+            yaxis=dict(showgrid=False, zeroline=False, title="normalized value"),
+            title={
+                "text": f"{formatted_subtype}: Movement Metric Means",
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {"size": 14}
+            }
         )
         
         # Create track display with matching color

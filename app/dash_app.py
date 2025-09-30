@@ -2,6 +2,7 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import html, Input, Output, dcc
+import plotly.graph_objects as go
 import sys
 import os
 
@@ -12,12 +13,14 @@ if __name__ == "__main__":
 # Handle imports for both local development and container
 try:
     from components.tsne_component import create_tsne_component
+    from components.pe_axis_component import create_pe_axis_component
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from components.header_component import create_header_component
     from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
 except ImportError:
     # For container environment
     from app.components.tsne_component import create_tsne_component
+    from app.components.pe_axis_component import create_pe_axis_component
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from app.components.header_component import create_header_component
     from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
@@ -47,12 +50,41 @@ app.layout = html.Div(
             style={
                 "display": "flex",
                 "flexDirection": "column",
-                "gap": "20px",
+                "gap": "40px",
                 "padding": "20px 40px",
                 "flex": "1",
             },
             children=[
-                # Top row: t-SNE chart and trajectory chart side by side
+                # Page title
+                html.H1(
+                    "Single-Cell Phenotype Fingerprints",
+                    style={
+                        "color": "white",
+                        "textAlign": "center",
+                        "marginBottom": "16px",
+                        "fontSize": "32px",
+                        "fontWeight": "700"
+                    }
+                ),
+                # Introduction paragraph
+                html.P(
+                    [
+                        "Sperm display diverse movement patterns throughout their lifecycle, each with implications for fertilization success. Traditional Computer-Assisted Sperm Analysis (CASA) reduces these dynamics into coarse categories, obscuring the heterogeneity that shapes fertilization potential. By applying a probabilistic clustering approach with Gaussian Mixture Models (GMMs), we can uncover distinct motility types directly from the data.",
+                        html.Br(),
+                        html.Br(),
+                        html.Strong("Explore, click, and hover over the data below to learn about the different types of sperm movement", style={"fontWeight": "700"})
+                    ],
+                    style={
+                        "color": "#e0e0e0",
+                        "textAlign": "center",
+                        "maxWidth": "900px",
+                        "margin": "0 auto 30px auto",
+                        "fontSize": "16px",
+                        "lineHeight": "1.6",
+                        "padding": "0 20px"
+                    }
+                ),
+                # First row: t-SNE chart and trajectory chart side by side
                 html.Div(
                     style={
                         "display": "grid",
@@ -72,13 +104,88 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
-                # Bottom row: bar chart
+                # Second row: Kinematic metrics tabs
                 html.Div(
                     style={
                         "width": "100%",
                     },
                     children=[
                         create_cluster_metrics_component(),
+                    ],
+                ),
+                # Section header for P/E axis
+                html.H2(
+                    "Semi-Supervised Learning allows for Continuous Motility Scores of Individual Cells",
+                    style={
+                        "color": "white",
+                        "textAlign": "center",
+                        "marginTop": "20px",
+                        "marginBottom": "16px",
+                        "fontSize": "28px",
+                        "fontWeight": "700"
+                    }
+                ),
+                # Description paragraph
+                html.P(
+                    "Our cluster-derived labels serve as a soft “ground truth” that condenses multivariate CASA measurements into a single progressivity–erraticity score, allowing transitional motility behaviors to be represented and providing clinically interpretable readouts.",
+                    style={
+                        "color": "#e0e0e0",
+                        "textAlign": "center",
+                        "maxWidth": "900px",
+                        "margin": "0 auto 30px auto",
+                        "fontSize": "16px",
+                        "lineHeight": "1.6",
+                        "padding": "0 20px"
+                    }
+                ),
+                # Third row: P/E axis chart and trajectory chart side by side
+                html.Div(
+                    style={
+                        "display": "grid",
+                        "gridTemplateColumns": "2fr 1fr",
+                        "gap": "20px",
+                        "alignItems": "center",
+                    },
+                    children=[
+                        html.Div([
+                            html.Div(id="pe-axis-content", children=create_pe_axis_component())
+                        ]),
+                        html.Div(
+                            id="pe-trajectory-content",
+                            children=[
+                                html.Div(
+                                    style={
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "height": "100%",
+                                    },
+                                    children=[
+                                        html.Div("Sperm Trajectory", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
+                                        html.Div(
+                                            dcc.Graph(
+                                                id="pe-traj-view",
+                                                style={"height": "380px"},
+                                                config={"responsive": False},
+                                                figure=go.Figure().update_layout(
+                                                    margin=dict(l=10, r=10, t=40, b=10),
+                                                    paper_bgcolor="#1a1a1a",
+                                                    plot_bgcolor="#1a1a1a",
+                                                    showlegend=False,
+                                                    xaxis=dict(visible=False),
+                                                    yaxis=dict(visible=False),
+                                                )
+                                            ),
+                                            style={
+                                                "borderRadius": "12px",
+                                                "overflow": "hidden",
+                                                "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
+                                            }
+                                        ),
+                                    ]
+                                ),
+                            ],
+                        ),
                     ],
                 ),
             ],
@@ -146,50 +253,75 @@ app.index_string = '''
                 100% { transform: rotate(360deg); }
             }
             
-            /* Custom tab styling */
-            .tab {
+            /* Custom tab styling - Force override everything */
+            .custom-tab,
+            div.custom-tab,
+            div[role="tab"].custom-tab,
+            div[role="tab"][aria-selected="false"],
+            #metrics-tabs div[role="tab"]:not([aria-selected="true"]) {
                 color: white !important;
-                background: linear-gradient(135deg, #404040 0%, #353535 100%) !important;
-                border: none !important;
+                background: linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%) !important;
+                background-image: linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%) !important;
+                border: 1px solid rgba(99, 110, 250, 0.5) !important;
                 border-radius: 25px !important;
-                padding: 10px 8px !important;
+                padding: 10px 16px !important;
                 font-weight: 500 !important;
                 font-size: 14px !important;
                 margin-right: 12px !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+                box-shadow: 0 4px 8px rgba(99, 110, 250, 0.3) !important;
                 transition: all 0.3s ease !important;
                 cursor: pointer !important;
             }
             
-            .tab--selected {
+            .custom-tab--selected,
+            .tab--selected,
+            div[role="tab"][aria-selected="true"],
+            div.custom-tab--selected,
+            #metrics-tabs div[role="tab"][aria-selected="true"] {
                 color: white !important;
-                background: linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%) !important;
-                box-shadow: 0 4px 8px rgba(99, 110, 250, 0.3) !important;
-                transform: translateY(-2px) !important;
+                background: rgba(99, 110, 250, 0.35) !important;
+                background-color: rgba(99, 110, 250, 0.35) !important;
+                background-image: none !important;
+                border: 1px solid rgba(99, 110, 250, 0.6) !important;
+                border-radius: 25px !important;
+                padding: 10px 16px !important;
+                font-weight: 600 !important;
+                box-shadow: 0 4px 12px rgba(99, 110, 250, 0.3) !important;
+            }
+            
+            /* Extra specific override for selected tabs to ensure translucency */
+            #metrics-tabs .custom-tab--selected,
+            #metrics-tabs div[role="tab"].custom-tab--selected {
+                background: rgba(99, 110, 250, 0.35) !important;
+                background-color: rgba(99, 110, 250, 0.35) !important;
+                background-image: none !important;
             }
             
             .tab--selected *,
-            .tab--selected div {
-                color: white !important;
-            }
-            
-            /* Override any Dash default styles */
-            div[role="tab"][aria-selected="true"],
+            .tab--selected div,
             div[role="tab"][aria-selected="true"] * {
                 color: white !important;
             }
             
             /* Hover effects */
-            .tab:hover {
-                background: linear-gradient(135deg, #505050 0%, #454545 100%) !important;
+            .custom-tab:hover,
+            .tab:hover,
+            div[role="tab"][aria-selected="false"]:hover,
+            #metrics-tabs div[role="tab"]:not([aria-selected="true"]):hover {
+                background: linear-gradient(135deg, #7d7eff 0%, #636EFA 100%) !important;
+                background-image: linear-gradient(135deg, #7d7eff 0%, #636EFA 100%) !important;
                 transform: translateY(-1px) !important;
-                box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+                box-shadow: 0 5px 10px rgba(99, 110, 250, 0.4) !important;
             }
             
+            .custom-tab--selected:hover,
             .tab--selected:hover,
-            div[role="tab"][aria-selected="true"]:hover {
-                background: linear-gradient(135deg, #7d7eff 0%, #636EFA 100%) !important;
-                box-shadow: 0 5px 10px rgba(99, 110, 250, 0.4) !important;
+            div[role="tab"][aria-selected="true"]:hover,
+            #metrics-tabs div[role="tab"][aria-selected="true"]:hover {
+                background: rgba(99, 110, 250, 0.45) !important;
+                background-color: rgba(99, 110, 250, 0.45) !important;
+                background-image: none !important;
+                box-shadow: 0 5px 14px rgba(99, 110, 250, 0.4) !important;
             }
         </style>
     </head>
@@ -208,8 +340,38 @@ app.index_string = '''
 register_tsne_trajectory_callbacks(app)
 register_cluster_metrics_callbacks(app)
 
-# No tab switching needed; t-SNE is fixed
+# Register P/E axis trajectory callback
+try:
+    from components.tsne_trajectory_component import trajectory_fig_centered, SUBTYPE_COLORS
+    from datastore import get_trajectory, CENTER_LOOKUP
+except ImportError:
+    from app.components.tsne_trajectory_component import trajectory_fig_centered, SUBTYPE_COLORS
+    from app.datastore import get_trajectory, CENTER_LOOKUP
 
+@app.callback(
+    Output("pe-traj-view", "figure"),
+    Input("pe-axis", "hoverData"),
+    Input("pe-axis", "clickData"),
+    prevent_initial_call=True,
+)
+def update_pe_traj_view(hoverData, clickData):
+    from dash import callback_context
+    # Prefer click over hover
+    ctx = callback_context
+    ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("pe-axis.clickData")) else hoverData
+    if not ev or "points" not in ev:
+        raise dash.exceptions.PreventUpdate
+
+    p = ev["points"][0]
+    customdata = p["customdata"]
+    track_id, participant_id, klass = customdata[0], customdata[1], customdata[2]
+    
+    # Get the color for this subtype
+    subtype_color = SUBTYPE_COLORS.get(klass, "#636EFA")
+
+    traj = get_trajectory(track_id, participant_id)
+    center = CENTER_LOOKUP.get((participant_id, track_id))
+    return trajectory_fig_centered(traj, center, color=subtype_color)
 
 # Callback to hide loading overlay after timer
 @app.callback(
