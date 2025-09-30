@@ -3,7 +3,7 @@ Clean side-by-side comparison component for patient fingerprints.
 Professional design with dropdown selection and comprehensive visualizations.
 """
 
-from dash import html, dcc, Input, Output, State, no_update
+from dash import html, dcc, Input, Output, State
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -278,8 +278,7 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
             'bgcolor': 'rgba(99, 110, 250, 0.3)' if animate else 'rgba(0,0,0,0)',
             'bordercolor': 'rgba(99, 110, 250, 0.5)' if animate else 'rgba(0,0,0,0)',
         }],
-        autosize=False,  # Prevent auto-resizing
-        uirevision='constant',  # Prevent re-initialization on updates
+        autosize=True,  # Allow auto-resizing for proper container fitting
     )
     
     return fig
@@ -344,8 +343,7 @@ def create_clean_radar(values, labels, title="", show_average=False, average_val
         height=250,
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=50, r=50, t=45, b=30),
-        autosize=False,
-        uirevision='constant',
+        autosize=True,
     )
     
     return fig
@@ -486,19 +484,19 @@ def create_clean_comparison_section():
                                     "alignItems": "start"
                                 },
                                 children=[
-                                    # Top-left: P-E scatter placeholder
+                                    # Top-left: P-E scatter
                                     html.Div(
-                                        id='felipe-pe-scatter-container',
-                                        style={"minWidth": "0", "minHeight": "250px", "height": "250px", "backgroundColor": "transparent", "display": "flex", "alignItems": "center", "justifyContent": "center", "color": "#666", "width": "100%"}
+                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
                                     ),
                                     # Top-right: CASA radar
                                     html.Div(
-                                        [dcc.Graph(id='felipe-casa-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='felipe-casa-radar', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Bottom-left: GMM radar
                                     html.Div(
-                                        [dcc.Graph(id='felipe-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='felipe-radar', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Bottom-right: Paragraph element
@@ -558,19 +556,19 @@ def create_clean_comparison_section():
                                     "alignItems": "start"
                                 },
                                 children=[
-                                    # Top-left: P-E scatter placeholder
+                                    # Top-left: P-E scatter
                                     html.Div(
-                                        id='participant-pe-scatter-container',
-                                        style={"minWidth": "0", "minHeight": "250px", "height": "250px", "backgroundColor": "transparent", "display": "flex", "alignItems": "center", "justifyContent": "center", "color": "#666", "width": "100%"}
+                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
                                     ),
                                     # Top-right: CASA radar + description
                                     html.Div(
-                                        [dcc.Graph(id='participant-casa-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='participant-casa-radar', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Bottom-left: GMM radar
                                     html.Div(
-                                        [dcc.Graph(id='participant-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='participant-radar', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Bottom-right: Paragraph element
@@ -721,8 +719,10 @@ def register_clean_comparison_callbacks(app):
         [Output('comparison-loading', 'style'),
          Output('comparison-container', 'style'),
          Output('participant-title', 'children'),
+         Output('felipe-pe-scatter', 'figure'),
          Output('felipe-casa-radar', 'figure'),
          Output('felipe-radar', 'figure'),
+         Output('participant-pe-scatter', 'figure'),
          Output('participant-casa-radar', 'figure'),
          Output('participant-radar', 'figure')],
         Input('comparison-wrapper', 'id'),  # Trigger on page load
@@ -837,8 +837,10 @@ def register_clean_comparison_callbacks(app):
             {"display": "none"},  # Hide loading spinner
             {"display": "grid", "gridTemplateColumns": "minmax(0,1fr) minmax(0,1fr)", "gap": "20px", "alignItems": "start"},  # Show responsive 2-col grid
             title,
+            felipe_pe,
             felipe_casa_radar,
             felipe_radar,
+            participant_pe,
             participant_casa_radar,
             participant_radar,
         ]
@@ -855,42 +857,3 @@ def register_clean_comparison_callbacks(app):
         participant_traj_fig = cached_data.get('participant_traj_fig', _trajectory_placeholder("Sperm Trajectories (n=120)"))
         
         return felipe_traj_fig, participant_traj_fig
-
-    # Delayed P-E scatter creation - triggers after container is visible
-    @app.callback(
-        [Output('felipe-pe-scatter-container', 'children'),
-         Output('participant-pe-scatter-container', 'children')],
-        Input('comparison-container', 'style'),  # Trigger when container becomes visible
-    )
-    def create_pe_scatters_after_visible(container_style):
-        """Create P-E scatter plots after container is visible."""
-        
-        # Only proceed if container is visible
-        if container_style.get('display') != 'grid':
-            return [no_update, no_update]
-        
-        # Use the cached data
-        felipe_fid = cached_data['felipe_fid']
-        loader = cached_data['loader']
-        participant_id = 'b7f96273'
-        participant_tracks = loader.get_patient_tracks(participant_id)
-        
-        # Create P-E scatter plots
-        felipe_pe = create_pe_scatter(felipe_fid, "P-E Scatter")
-        participant_pe = create_pe_scatter(participant_tracks, "P-E Scatter")
-        
-        # Create graph components (no IDs needed since they're children of containers)
-        felipe_graph = dcc.Graph(
-            figure=felipe_pe,
-            style={"width": "100%", "height": "250px", "minWidth": "0"},
-            config={'displayModeBar': False, 'responsive': True, 'autosizable': True}
-        )
-        
-        participant_graph = dcc.Graph(
-            figure=participant_pe,
-            style={"width": "100%", "height": "250px", "minWidth": "0"},
-            config={'displayModeBar': False, 'responsive': True, 'autosizable': True}
-        )
-        
-        return [felipe_graph, participant_graph]
-
