@@ -208,51 +208,6 @@ app.layout = html.Div(
                 ),
             ],
         ),
-        
-        # Loading overlay for app startup
-        html.Div(
-            id="app-loading-overlay",
-            style={
-                "position": "fixed",
-                "top": 0,
-                "left": 0,
-                "width": "100%",
-                "height": "100%",
-                "backgroundColor": "rgba(255, 255, 255, 0.9)",
-                "display": "flex",
-                "flexDirection": "column",
-                "alignItems": "center",
-                "justifyContent": "center",
-                "zIndex": 1000,
-                "fontFamily": "Arial, sans-serif",
-            },
-            children=[
-                html.Div(
-                    style={
-                        "width": "50px",
-                        "height": "50px",
-                        "border": "5px solid #f3f3f3",
-                        "borderTop": "5px solid #3498db",
-                        "borderRadius": "50%",
-                        "animation": "spin 1s linear infinite",
-                        "marginBottom": "20px",
-                    }
-                ),
-                html.H3("Loading Dashboard...", style={"margin": "0", "color": "#333"}),
-                html.P(
-                    "Initializing data and components",
-                    style={"margin": "10px 0 0 0", "color": "#666", "fontSize": "14px"}
-                ),
-            ]
-        ),
-        
-        # Interval to hide loading overlay after 2 seconds
-        dcc.Interval(
-            id="loading-interval",
-            interval=2000,  # 2 seconds
-            n_intervals=0,
-            max_intervals=1  # Only run once
-        ),
     ],
 )
 
@@ -413,23 +368,6 @@ def update_pe_traj_view(hoverData, clickData):
     center = CENTER_LOOKUP.get((participant_id, track_id))
     return trajectory_fig_centered(traj, center, color=subtype_color)
 
-# Callback to hide loading overlay after timer
-@app.callback(
-    Output("app-loading-overlay", "style"),
-    Input("loading-interval", "n_intervals"),
-    prevent_initial_call=True,
-)
-def hide_loading_overlay(n_intervals):
-    return {
-        "position": "fixed",
-        "top": 0,
-        "left": 0,
-        "width": "100%",
-        "height": "100%",
-        "backgroundColor": "rgba(255, 255, 255, 0.9)",
-        "display": "none",  # Hide after timer
-        "zIndex": 1000,
-    }
 
 # ---------- Entrypoint ----------
 if __name__ == "__main__":
