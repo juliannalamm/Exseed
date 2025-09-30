@@ -351,6 +351,27 @@ def create_clean_radar(values, labels, title="", show_average=False, average_val
     return fig
 
 
+def _trajectory_placeholder(title: str = "Sperm Trajectories (loading)..."):
+    fig = go.Figure()
+    fig.add_annotation(
+        text="Loading trajectories...",
+        showarrow=False,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=0.5,
+        font=dict(color="white", size=14)
+    )
+    fig.update_layout(
+        title=dict(text=f"<b>{title}</b>", font=dict(size=14, color='white'), x=0.5),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(26,26,26,0.3)',
+        height=450,
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    return fig
+
+
 def create_clean_comparison_section():
     """Create clean comparison section with dropdown."""
     
@@ -417,6 +438,13 @@ def create_clean_comparison_section():
                     html.H4("Loading comparison data...", style={"margin": "0", "color": "#666", "fontSize": "18px"}),
                     html.P("This may take a few moments on first load", style={"margin": "10px 0 0 0", "color": "#888", "fontSize": "14px"})
                 ]
+            ),
+            # One-shot interval to trigger heavy trajectory render after first paint
+            dcc.Interval(
+                id='comparison-init-interval',
+                interval=300,
+                n_intervals=0,
+                max_intervals=1,
             ),
             
             # Two-column comparison - hidden until data loads
@@ -601,21 +629,47 @@ def get_cached_data():
             
             if loader is None:
                 raise Exception("Could not find dash_data in any expected location")
-                
+            
+            # Pre-render trajectory figures at startup
+            print("Pre-rendering trajectory figures...")
+            participant_id = 'b7f96273'
+            participant_tracks = loader.get_patient_tracks(participant_id)
+            participant_frames = loader.get_patient_frames(participant_id)
+            
+            # Pre-compute Felipe trajectories
+            felipe_traj_fig = create_clean_trajectories(
+                felipe_traj,
+                felipe_fid,
+                "Sperm Trajectories (n=120)",
+                n_display=120
+            )
+            
+            # Pre-compute participant trajectories
+            participant_traj_fig = create_clean_trajectories(
+                participant_frames,
+                participant_tracks,
+                "Sperm Trajectories (n=120)",
+                n_display=120
+            )
+            
             _cached_data = {
                 'felipe_fid': felipe_fid,
                 'felipe_traj': felipe_traj,
                 'loader': loader,
-                'has_data': True
+                'has_data': True,
+                'felipe_traj_fig': felipe_traj_fig,
+                'participant_traj_fig': participant_traj_fig
             }
-            print("Data loaded and cached successfully!")
+            print("Data and trajectory figures loaded and cached successfully!")
         except Exception as e:
             print(f"Error loading dash data: {e}")
             _cached_data = {
                 'felipe_fid': None,
                 'felipe_traj': None,
                 'loader': None,
-                'has_data': False
+                'has_data': False,
+                'felipe_traj_fig': None,
+                'participant_traj_fig': None
             }
     
     return _cached_data
@@ -661,11 +715,9 @@ def register_clean_comparison_callbacks(app):
          Output('participant-title', 'children'),
          Output('felipe-pe-scatter', 'figure'),
          Output('felipe-casa-radar', 'figure'),
-         Output('felipe-trajectories', 'figure'),
          Output('felipe-radar', 'figure'),
          Output('participant-pe-scatter', 'figure'),
          Output('participant-casa-radar', 'figure'),
-         Output('participant-trajectories', 'figure'),
          Output('participant-radar', 'figure')],
         Input('comparison-wrapper', 'id'),  # Trigger on page load
     )
@@ -717,14 +769,6 @@ def register_clean_comparison_callbacks(app):
             average_values=avg_casa_values
         )
         
-        # Trajectories (keep original column names)
-        felipe_traj_fig = create_clean_trajectories(
-            felipe_traj,
-            felipe_fid,
-            "Sperm Trajectories (n=120)",
-            n_display=120
-        )
-        
         # GMM Radar
         felipe_gmm_values = felipe_fid[felipe_post_cols].mean(axis=0).values.tolist()
         felipe_gmm_labels = [c.replace('P_', '').replace('_', ' ').title() for c in felipe_post_cols]
@@ -769,14 +813,6 @@ def register_clean_comparison_callbacks(app):
             average_values=avg_casa_values
         )
         
-        # Trajectories
-        participant_traj_fig = create_clean_trajectories(
-            participant_frames,
-            participant_tracks,
-            "Sperm Trajectories (n=120)",
-            n_display=120
-        )
-        
         # GMM Radar
         participant_gmm_values = participant_tracks[felipe_post_cols].mean(axis=0).values.tolist()
         participant_radar = create_clean_radar(
@@ -797,10 +833,21 @@ def register_clean_comparison_callbacks(app):
             title,
             felipe_pe,
             felipe_casa_radar,
-            felipe_traj_fig,
             felipe_radar,
             participant_pe,
             participant_casa_radar,
-            participant_traj_fig,
             participant_radar,
         ]
+
+    # Heavy trajectories callback triggered after first paint
+    @app.callback(
+        [Output('felipe-trajectories', 'figure'),
+         Output('participant-trajectories', 'figure')],
+        Input('comparison-init-interval', 'n_intervals')
+    )
+    def render_heavy_trajectories(_):
+        # Return pre-computed trajectory figures (no reconstruction needed!)
+        felipe_traj_fig = cached_data.get('felipe_traj_fig', _trajectory_placeholder("Sperm Trajectories (n=120)"))
+        participant_traj_fig = cached_data.get('participant_traj_fig', _trajectory_placeholder("Sperm Trajectories (n=120)"))
+        
+        return felipe_traj_fig, participant_traj_fig
