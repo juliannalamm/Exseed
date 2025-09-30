@@ -149,33 +149,38 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
                  for r in TRACK_IDX.itertuples(index=False)}
 
 # ---------- Data access ----------
-# Load all trajectory data once
+# Load all trajectory data once and pre-index by fid for fast lookups
 try:
     _TRAJ_DF = pd.read_csv(_trajectory_csv())
+    print(f">>> LOADED {len(_TRAJ_DF)} trajectory records successfully")
+    
+    # Pre-index trajectories by fid for instant lookups
+    _TRAJECTORY_INDEX = {}
+    for fid, group in _TRAJ_DF.groupby('fid'):
+        # Sort by frame_number and select relevant columns
+        traj = group.sort_values('frame_number')[['frame_number', 'x', 'y']].copy()
+        traj = traj.rename(columns={'frame_number': 'frame_num'})
+        _TRAJECTORY_INDEX[fid] = traj.reset_index(drop=True)
+    
+    print(f">>> INDEXED {len(_TRAJECTORY_INDEX)} trajectories for fast lookup")
+    
 except Exception as e:
     print(f">>> ERROR loading trajectory data: {e}")
     _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_number", "x", "y"])
+    _TRAJECTORY_INDEX = {}
 
 def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
-    """Fetch a single track's frames from the trajectory CSV."""
+    """Fetch a single track's frames using pre-indexed data for instant lookup."""
     try:
         # Convert track_id to fid (Felipe data uses fid)
         fid = int(track_id) if track_id.isdigit() else track_id
         
-        # Filter for this fid
-        traj = _TRAJ_DF[_TRAJ_DF['fid'] == fid].copy()
-        
-        if traj.empty:
+        # Direct lookup from pre-indexed data
+        if fid in _TRAJECTORY_INDEX:
+            return _TRAJECTORY_INDEX[fid].copy()
+        else:
             return pd.DataFrame(columns=["frame_num", "x", "y"])
         
-        # Rename frame_number to frame_num for compatibility
-        if 'frame_number' in traj.columns:
-            traj = traj.rename(columns={'frame_number': 'frame_num'})
-        
-        # Sort and select relevant columns
-        traj = traj.sort_values('frame_num')[['frame_num', 'x', 'y']]
-        
-        return traj.reset_index(drop=True)
     except Exception as e:
         print(f"Error reading trajectory data for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])
