@@ -23,4 +23,4 @@ ENV PYTHONPATH=/app
 EXPOSE 8080
 
 # Use gunicorn for production (bind to $PORT provided by Cloud Run)
-CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 app.dash_app:server
+CMD exec gunicorn --preload --threads 2 --bind 0.0.0.0:$PORT --workers 1 --timeout 120 app.dash_app:server
