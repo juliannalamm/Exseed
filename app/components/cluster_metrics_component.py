@@ -28,18 +28,19 @@ SUBTYPE_COLORS = {
 # Track mapping for each motility type (participant_id, track_id)
 # For Felipe data, FID serves as both participant_id and track_id
 TRACK_MAPPING = {
-    "erratic": ("688", "688"),
+    "progressive": ("142", "142"),
     "rapid_progressive": ("1134", "1134"),
     "non_progressive": ("255", "255"),
+    "erratic": ("688", "688"),
     "immotile": ("1181", "1181")
 }
 
 # Descriptions for each motility type
 SUBTYPE_DESCRIPTIONS = {
-    "progressive": "Progressive sperm move forward in a straight or large circular path. These cells show good forward progression with moderate to high velocity.",
+    "progressive": "A clear, forward trajectory with high linearity and moderate velocity, indicating efficient, directed motion toward an egg.",
     "rapid_progressive": "Rapid progressive sperm move quickly and directly forward. These are the most motile cells with high velocity and strong directional movement, ideal for fertilization.",
     "non_progressive": "Non-progressive sperm move but don't make forward progress. They may move in small circles or have flagellar movement without advancing position.",
-    "erratic": "Erratic sperm display irregular, unpredictable movement patterns. They may change direction frequently or show inconsistent swimming behavior.",
+    "erratic": "Erratic sperm display irregular, unpredictable movement patterns. They may change direction frequently and exhibit low Linearity (LIN), high (VCL), and moderate to high Beat-Cross Frequency (BCF).",
     "immotile": "Immotile sperm show no movement or only slight flagellar movement without any progression. These cells are stationary or barely moving."
 }
 
@@ -146,9 +147,10 @@ def _create_track_figure(participant_id: str, track_id: str, color: str = "#636E
 
 def create_cluster_metrics_component():
     options = [
-        ("erratic", "Erratic"),
+        ("progressive", "Progressive"),
         ("rapid_progressive", "Rapid Progressive"),
         ("non_progressive", "Non-progressive"),
+        ("erratic", "Erratic"),
         ("immotile", "Immotile"),
     ]
     return html.Div(
