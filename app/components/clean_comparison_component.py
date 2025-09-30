@@ -789,7 +789,7 @@ def register_clean_comparison_callbacks(app):
         )
         
         # Title
-        title = f"Patient Sample B (Lower Motility))"
+        title = f"Patient Sample B (Lower Motility)"
         
         return [
             {"display": "none"},  # Hide loading spinner
