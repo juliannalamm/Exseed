@@ -488,8 +488,8 @@ def create_clean_comparison_section():
                                 children=[
                                     # Top-left: P-E scatter
                                     html.Div(
-                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True})],
-                                        style={"minWidth": "0"}
+                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%", "height": "100%", "minHeight": "250px"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': False})],
+                                        style={"minWidth": "0", "minHeight": "250px", "height": "100%"}
                                     ),
                                     # Top-right: CASA radar
                                     html.Div(
@@ -560,8 +560,8 @@ def create_clean_comparison_section():
                                 children=[
                                     # Top-left: P-E scatter
                                     html.Div(
-                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True})],
-                                        style={"minWidth": "0"}
+                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%", "height": "100%", "minHeight": "250px"}, config={'displayModeBar': False, 'responsive': True, 'autosizable': False})],
+                                        style={"minWidth": "0", "minHeight": "250px", "height": "100%"}
                                     ),
                                     # Top-right: CASA radar + description
                                     html.Div(
