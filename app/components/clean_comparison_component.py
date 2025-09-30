@@ -58,15 +58,17 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
     p_col = 'progressivity' if 'progressivity' in tracks_df.columns else 'P_axis_byls'
     e_col = 'erraticity' if 'erraticity' in tracks_df.columns else 'E_axis_byls'
     
-    # Color by cluster if available
+    # Color by cluster if available (clamp values to [0, 1])
     if 'subtype_label' in tracks_df.columns:
         for cluster in tracks_df['subtype_label'].unique():
             cluster_data = tracks_df[tracks_df['subtype_label'] == cluster]
             color = CLUSTER_COLORS.get(cluster, '#636EFA')
+            x_vals = np.clip(cluster_data[p_col].values, 0, 1)
+            y_vals = np.clip(cluster_data[e_col].values, 0, 1)
             
             fig.add_trace(go.Scatter(
-                x=cluster_data[p_col],
-                y=cluster_data[e_col],
+                x=x_vals,
+                y=y_vals,
                 mode='markers',
                 name=cluster.replace('_', ' ').title(),
                 marker=dict(
@@ -78,9 +80,11 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
                 showlegend=False,
             ))
     else:
+        x_vals = np.clip(tracks_df[p_col].values, 0, 1)
+        y_vals = np.clip(tracks_df[e_col].values, 0, 1)
         fig.add_trace(go.Scatter(
-            x=tracks_df[p_col],
-            y=tracks_df[e_col],
+            x=x_vals,
+            y=y_vals,
             mode='markers',
             marker=dict(size=5, color='#636EFA', opacity=0.6),
             showlegend=False,
@@ -93,14 +97,22 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
             gridcolor='rgba(255,255,255,0.1)', 
             color='#e0e0e0', 
             range=[0, 1],
-            scaleanchor="y",
-            scaleratio=1,
+            autorange=False,
+            zeroline=False,
+            fixedrange=True,
+            tick0=0,
+            dtick=0.2,
         ),
         yaxis=dict(
             title="Erraticity", 
             gridcolor='rgba(255,255,255,0.1)', 
             color='#e0e0e0', 
             range=[0, 1],
+            autorange=False,
+            zeroline=False,
+            fixedrange=True,
+            tick0=0,
+            dtick=0.2,
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(26,26,26,0.3)',
