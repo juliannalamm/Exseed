@@ -735,7 +735,7 @@ def register_clean_comparison_callbacks(app):
         felipe_radar = create_clean_radar(
             felipe_gmm_values, 
             felipe_gmm_labels, 
-            "GMM Composition",
+            "% Motility Type in Sample",
             show_average=True,
             average_values=avg_gmm_values,
             max_range=0.6  # Set max to 60% so radar fills more of circle
@@ -782,7 +782,7 @@ def register_clean_comparison_callbacks(app):
         participant_radar = create_clean_radar(
             participant_gmm_values, 
             felipe_gmm_labels, 
-            "GMM Composition",
+            "% Motility Type in Sample",
             show_average=True,
             average_values=avg_gmm_values,
             max_range=0.6  # Set max to 60% so radar fills more of circle
