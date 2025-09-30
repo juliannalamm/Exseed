@@ -257,7 +257,7 @@ def create_cluster_metrics_component():
                     # Right side: Track display
                     html.Div(
                         [
-                            html.Div("Example Track", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
+                            html.Div("Example Track", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center", "paddingTop": "8px"}),
                             dcc.Graph(
                                 id="track-display",
                                 style={"height": "300px"},
@@ -266,6 +266,7 @@ def create_cluster_metrics_component():
                             )
                         ],
                         style={
+                            "backgroundColor": "#1a1a1a",
                             "borderRadius": "12px",
                             "overflow": "hidden",
                             "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"

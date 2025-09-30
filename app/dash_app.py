@@ -17,6 +17,8 @@ try:
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from components.header_component import create_header_component
     from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
+    from components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
+    from components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
 except ImportError:
     # For container environment
     from app.components.tsne_component import create_tsne_component
@@ -24,6 +26,8 @@ except ImportError:
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from app.components.header_component import create_header_component
     from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
+    from app.components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
+    from app.components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
 
 # ---------- App ----------
 app = dash.Dash(
@@ -115,7 +119,7 @@ app.layout = html.Div(
                 ),
                 # Section header for P/E axis
                 html.H2(
-                    "Semi-Supervised Learning allows for Continuous Motility Scores of Individual Cells",
+                    "Generating Continuous Motility Scores",
                     style={
                         "color": "white",
                         "textAlign": "center",
@@ -186,6 +190,16 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
+                    ],
+                ),
+                # Fourth row: Clean Side-by-side Comparison
+                html.Div(
+                    style={
+                        "width": "100%",
+                        "marginTop": "40px",
+                    },
+                    children=[
+                        create_clean_comparison_section(),
                     ],
                 ),
             ],
@@ -339,6 +353,8 @@ app.index_string = '''
 # Register t-SNE callbacks and metrics tabs
 register_tsne_trajectory_callbacks(app)
 register_cluster_metrics_callbacks(app)
+register_archetype_radar_callbacks(app)
+register_clean_comparison_callbacks(app)
 
 # Register P/E axis trajectory callback
 try:
