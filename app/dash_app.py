@@ -238,6 +238,30 @@ app.layout = html.Div(
                     }
                 ),
                 html.H3("Preparing data (this may take a moment)...", style={"margin": "0", "color": "#fff"}),
+                # Progress bar
+                html.Div(
+                    id="loading-progress",
+                    style={
+                        "width": "320px",
+                        "height": "10px",
+                        "backgroundColor": "rgba(255,255,255,0.15)",
+                        "borderRadius": "6px",
+                        "overflow": "hidden",
+                        "marginTop": "14px",
+                        "marginBottom": "10px",
+                    },
+                    children=[
+                        html.Div(
+                            id="loading-progress-inner",
+                            style={
+                                "width": "4%",
+                                "height": "100%",
+                                "background": "linear-gradient(90deg, #636EFA, #7d7eff)",
+                                "transition": "width 0.4s ease",
+                            }
+                        )
+                    ]
+                ),
                 html.P(
                     "Initializing data and components",
                     style={"margin": "10px 0 0 0", "color": "#ddd", "fontSize": "14px"}
@@ -412,10 +436,11 @@ def update_pe_traj_view(hoverData, clickData):
 # Overlay visibility controller
 @app.callback(
     Output("app-loading-overlay", "style"),
+    Output("loading-progress-inner", "style"),
     Input("traj-loading-interval", "n_intervals"),
     prevent_initial_call=False,
 )
-def hide_overlay_when_ready(_):
+def hide_overlay_when_ready(n):
     # Keep showing until trajectories are loaded
     visible_style = {
         "position": "fixed",
@@ -431,12 +456,25 @@ def hide_overlay_when_ready(_):
         "zIndex": 1000,
         "fontFamily": "Arial, sans-serif",
     }
+    # Fake-progress: ramp to 95% while loading, snap to 100% when ready
+    base_style = {
+        "width": "4%",
+        "height": "100%",
+        "background": "linear-gradient(90deg, #636EFA, #7d7eff)",
+        "transition": "width 0.4s ease",
+    }
     if is_trajectory_loaded():
         # Hide overlay once ready
         hidden = dict(visible_style)
         hidden["display"] = "none"
-        return hidden
-    return visible_style
+        final_bar = dict(base_style)
+        final_bar["width"] = "100%"
+        return hidden, final_bar
+    # cap progress at 95%
+    pct = min(95, max(4, (n or 0) * 6))  # ~6%/sec
+    prog = dict(base_style)
+    prog["width"] = f"{pct}%"
+    return visible_style, prog
 
 
 # ---------- Entrypoint ----------
