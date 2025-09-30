@@ -346,12 +346,20 @@ def create_clean_comparison_section():
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
+        # Debug: List current directory contents
+        print(f"Current working directory: {Path.cwd()}")
+        print(f"Contents of current directory: {list(Path.cwd().iterdir())}")
+        print(f"Contents of app directory: {list(Path('app').iterdir()) if Path('app').exists() else 'app directory not found'}")
+        
         # Try multiple possible paths for dash_data
         data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
         loader = None
         for data_path in data_paths:
             try:
                 print(f"Trying to load data from: {data_path}")
+                print(f"Path exists: {Path(data_path).exists()}")
+                if Path(data_path).exists():
+                    print(f"Contents of {data_path}: {list(Path(data_path).iterdir())}")
                 loader = ArchetypeDataLoader(data_path)
                 print(f"Successfully loaded data from: {data_path}")
                 break
@@ -566,17 +574,25 @@ def register_clean_comparison_callbacks(app):
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
+        # Debug: List current directory contents
+        print(f"CALLBACK - Current working directory: {Path.cwd()}")
+        print(f"CALLBACK - Contents of current directory: {list(Path.cwd().iterdir())}")
+        print(f"CALLBACK - Contents of app directory: {list(Path('app').iterdir()) if Path('app').exists() else 'app directory not found'}")
+        
         # Try multiple possible paths for dash_data
         data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
         loader = None
         for data_path in data_paths:
             try:
-                print(f"Trying to load data from: {data_path}")
+                print(f"CALLBACK - Trying to load data from: {data_path}")
+                print(f"CALLBACK - Path exists: {Path(data_path).exists()}")
+                if Path(data_path).exists():
+                    print(f"CALLBACK - Contents of {data_path}: {list(Path(data_path).iterdir())}")
                 loader = ArchetypeDataLoader(data_path)
-                print(f"Successfully loaded data from: {data_path}")
+                print(f"CALLBACK - Successfully loaded data from: {data_path}")
                 break
             except Exception as path_error:
-                print(f"Failed to load from {data_path}: {path_error}")
+                print(f"CALLBACK - Failed to load from {data_path}: {path_error}")
                 continue
         
         if loader is None:
@@ -584,9 +600,9 @@ def register_clean_comparison_callbacks(app):
             
         has_data = True
     except Exception as e:
-        print(f"Error loading dash data in callbacks: {e}")
-        print(f"Current working directory: {Path.cwd()}")
-        print(f"Looking for dash_data in: {Path('dash_data').absolute()}")
+        print(f"CALLBACK - Error loading dash data in callbacks: {e}")
+        print(f"CALLBACK - Current working directory: {Path.cwd()}")
+        print(f"CALLBACK - Looking for dash_data in: {Path('dash_data').absolute()}")
         has_data = False
     
     if not has_data or felipe_fid is None:
