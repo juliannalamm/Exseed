@@ -86,7 +86,10 @@ def get_default_trajectory():
     participant_id = first_point["participant_id"]
     
     # Start background loading of trajectory data
-    from datastore import _load_trajectory_data
+    try:
+        from datastore import _load_trajectory_data
+    except ImportError:
+        from app.datastore import _load_trajectory_data
     _load_trajectory_data()
     
     # Get the trajectory data (may be empty if still loading)
