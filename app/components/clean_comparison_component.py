@@ -3,7 +3,7 @@ Clean side-by-side comparison component for patient fingerprints.
 Professional design with dropdown selection and comprehensive visualizations.
 """
 
-from dash import html, dcc, Input, Output, State
+from dash import html, dcc, Input, Output, State, no_update
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -488,7 +488,7 @@ def create_clean_comparison_section():
                                 children=[
                                     # Top-left: P-E scatter
                                     html.Div(
-                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Top-right: CASA radar
@@ -560,7 +560,7 @@ def create_clean_comparison_section():
                                 children=[
                                     # Top-left: P-E scatter
                                     html.Div(
-                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False, 'responsive': True})],
                                         style={"minWidth": "0"}
                                     ),
                                     # Top-right: CASA radar + description
@@ -859,3 +859,4 @@ def register_clean_comparison_callbacks(app):
         participant_traj_fig = cached_data.get('participant_traj_fig', _trajectory_placeholder("Sperm Trajectories (n=120)"))
         
         return felipe_traj_fig, participant_traj_fig
+
