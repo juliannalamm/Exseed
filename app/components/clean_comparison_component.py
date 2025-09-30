@@ -344,14 +344,20 @@ def create_clean_comparison_section():
     
     # Don't load data during component creation - defer to callbacks
     # This prevents the 30-second delay on initial page load
+    # The component renders immediately, data loads asynchronously via callbacks
     
     return html.Div(
+        id="comparison-wrapper",
         style={
             "backgroundColor": "rgba(0,0,0,0)",
             "padding": "20px 0",
+            "maxWidth": "1400px",
+            "margin": "0 auto",
+            "overflowX": "hidden",
+            "boxSizing": "border-box",
         },
         children=[
-            # Header and dropdown
+            # Header
             html.Div(
                 style={"textAlign": "center", "marginBottom": "30px"},
                 children=[
@@ -373,18 +379,39 @@ def create_clean_comparison_section():
                             "lineHeight": "1.6"
                         }
                     ),
-                    
-                
                 ]
             ),
             
-            # Two-column comparison
+            # Loading placeholder - shows immediately
+            html.Div(
+                id="comparison-loading",
+                style={
+                    "textAlign": "center",
+                    "padding": "60px 40px",
+                    "color": "#999"
+                },
+                children=[
+                    html.Div(
+                        style={
+                            "width": "50px",
+                            "height": "50px",
+                            "border": "5px solid #f3f3f3",
+                            "borderTop": "5px solid #3498db",
+                            "borderRadius": "50%",
+                            "animation": "spin 1s linear infinite",
+                            "margin": "0 auto 20px auto",
+                        }
+                    ),
+                    html.H4("Loading comparison data...", style={"margin": "0", "color": "#666", "fontSize": "18px"}),
+                    html.P("This may take a few moments on first load", style={"margin": "10px 0 0 0", "color": "#888", "fontSize": "14px"})
+                ]
+            ),
+            
+            # Two-column comparison - hidden until data loads
             html.Div(
                 id='comparison-container',
                 style={
-                    "display": "grid",
-                    "gridTemplateColumns": "1fr 1fr",
-                    "gap": "20px",
+                    "display": "none",  # Hidden initially
                 },
                 children=[
                     # LEFT: Felipe Data
@@ -413,24 +440,27 @@ def create_clean_comparison_section():
                             html.Div(
                                 style={
                                     "display": "grid",
-                                    "gridTemplateColumns": "1fr 1fr",
+                                    "gridTemplateColumns": "minmax(0,1fr) minmax(0,1fr)",
                                     "gap": "15px",
                                     "marginBottom": "15px",
                                     "alignItems": "start"
                                 },
                                 children=[
                                     # Top-left: P-E scatter
-                                    html.Div([
-                                        dcc.Graph(id='felipe-pe-scatter', config={'displayModeBar': False}),
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='felipe-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Top-right: CASA radar
-                                    html.Div([
-                                        dcc.Graph(id='felipe-casa-radar', config={'displayModeBar': False}),
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='felipe-casa-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Bottom-left: GMM radar
-                                    html.Div([
-                                        dcc.Graph(id='felipe-radar', config={'displayModeBar': False})
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='felipe-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Bottom-right: Paragraph element
                                     html.Div(
                                         style={
@@ -482,24 +512,27 @@ def create_clean_comparison_section():
                             html.Div(
                                 style={
                                     "display": "grid",
-                                    "gridTemplateColumns": "1fr 1fr",
+                                    "gridTemplateColumns": "minmax(0,1fr) minmax(0,1fr)",
                                     "gap": "15px",
                                     "marginBottom": "15px",
                                     "alignItems": "start"
                                 },
                                 children=[
                                     # Top-left: P-E scatter
-                                    html.Div([
-                                        dcc.Graph(id='participant-pe-scatter', config={'displayModeBar': False}),
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='participant-pe-scatter', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Top-right: CASA radar + description
-                                    html.Div([
-                                        dcc.Graph(id='participant-casa-radar', config={'displayModeBar': False}),
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='participant-casa-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Bottom-left: GMM radar
-                                    html.Div([
-                                        dcc.Graph(id='participant-radar', config={'displayModeBar': False})
-                                    ]),
+                                    html.Div(
+                                        [dcc.Graph(id='participant-radar', style={"width": "100%"}, config={'displayModeBar': False})],
+                                        style={"minWidth": "0"}
+                                    ),
                                     # Bottom-right: Paragraph element
                                     html.Div(
                                         style={
@@ -611,7 +644,9 @@ def register_clean_comparison_callbacks(app):
     }
     
     @app.callback(
-        [Output('participant-title', 'children'),
+        [Output('comparison-loading', 'style'),
+         Output('comparison-container', 'style'),
+         Output('participant-title', 'children'),
          Output('felipe-pe-scatter', 'figure'),
          Output('felipe-casa-radar', 'figure'),
          Output('felipe-trajectories', 'figure'),
@@ -620,13 +655,12 @@ def register_clean_comparison_callbacks(app):
          Output('participant-casa-radar', 'figure'),
          Output('participant-trajectories', 'figure'),
          Output('participant-radar', 'figure')],
-        Input('comparison-container', 'id'),  # Trigger on page load
+        Input('comparison-wrapper', 'id'),  # Trigger on page load
     )
     def update_comparison(_):
         """Update all comparison plots."""
         
-        # Get cached data
-        cached_data = get_cached_data()
+        # Use the cached data that was loaded during registration
         felipe_fid = cached_data['felipe_fid']
         felipe_traj = cached_data['felipe_traj']
         loader = cached_data['loader']
@@ -746,6 +780,8 @@ def register_clean_comparison_callbacks(app):
         title = f"Patient Sample B (Lower Motility))"
         
         return [
+            {"display": "none"},  # Hide loading spinner
+            {"display": "grid", "gridTemplateColumns": "minmax(0,1fr) minmax(0,1fr)", "gap": "20px", "alignItems": "start"},  # Show responsive 2-col grid
             title,
             felipe_pe,
             felipe_casa_radar,

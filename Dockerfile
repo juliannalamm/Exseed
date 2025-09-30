@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and data
 COPY app/ ./app/
 COPY felipe_data/ ./felipe_data/
-COPY app/dash_data/ ./app/dash_data/
+COPY app/dash_data/ ./dash_data/
 
 # Set Python path to include the current directory
 ENV PYTHONPATH=/app
