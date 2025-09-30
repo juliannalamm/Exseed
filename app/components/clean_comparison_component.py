@@ -567,45 +567,58 @@ def create_clean_comparison_section():
     )
 
 
+# Global cache for data loading
+_cached_data = None
+
+def get_cached_data():
+    """Get cached data or load it if not cached."""
+    global _cached_data
+    if _cached_data is None:
+        print("Loading data for first time...")
+        felipe_fid, felipe_traj = load_felipe_data()
+        
+        try:
+            # Try multiple possible paths for dash_data
+            data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+            loader = None
+            for data_path in data_paths:
+                try:
+                    print(f"Trying to load data from: {data_path}")
+                    loader = ArchetypeDataLoader(data_path)
+                    print(f"Successfully loaded data from: {data_path}")
+                    break
+                except Exception as path_error:
+                    print(f"Failed to load from {data_path}: {path_error}")
+                    continue
+            
+            if loader is None:
+                raise Exception("Could not find dash_data in any expected location")
+                
+            _cached_data = {
+                'felipe_fid': felipe_fid,
+                'felipe_traj': felipe_traj,
+                'loader': loader,
+                'has_data': True
+            }
+            print("Data loaded and cached successfully!")
+        except Exception as e:
+            print(f"Error loading dash data: {e}")
+            _cached_data = {
+                'felipe_fid': None,
+                'felipe_traj': None,
+                'loader': None,
+                'has_data': False
+            }
+    
+    return _cached_data
+
 def register_clean_comparison_callbacks(app):
     """Register callbacks for clean comparison."""
     
-    # Load data
-    felipe_fid, felipe_traj = load_felipe_data()
+    # Get cached data
+    cached_data = get_cached_data()
     
-    try:
-        # Debug: List current directory contents
-        print(f"CALLBACK - Current working directory: {Path.cwd()}")
-        print(f"CALLBACK - Contents of current directory: {list(Path.cwd().iterdir())}")
-        print(f"CALLBACK - Contents of app directory: {list(Path('app').iterdir()) if Path('app').exists() else 'app directory not found'}")
-        
-        # Try multiple possible paths for dash_data
-        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
-        loader = None
-        for data_path in data_paths:
-            try:
-                print(f"CALLBACK - Trying to load data from: {data_path}")
-                print(f"CALLBACK - Path exists: {Path(data_path).exists()}")
-                if Path(data_path).exists():
-                    print(f"CALLBACK - Contents of {data_path}: {list(Path(data_path).iterdir())}")
-                loader = ArchetypeDataLoader(data_path)
-                print(f"CALLBACK - Successfully loaded data from: {data_path}")
-                break
-            except Exception as path_error:
-                print(f"CALLBACK - Failed to load from {data_path}: {path_error}")
-                continue
-        
-        if loader is None:
-            raise Exception("Could not find dash_data in any expected location")
-            
-        has_data = True
-    except Exception as e:
-        print(f"CALLBACK - Error loading dash data in callbacks: {e}")
-        print(f"CALLBACK - Current working directory: {Path.cwd()}")
-        print(f"CALLBACK - Looking for dash_data in: {Path('dash_data').absolute()}")
-        has_data = False
-    
-    if not has_data or felipe_fid is None:
+    if not cached_data['has_data'] or cached_data['felipe_fid'] is None:
         return
     
     # Prepare Felipe data once
@@ -648,6 +661,11 @@ def register_clean_comparison_callbacks(app):
     )
     def update_comparison(_):
         """Update all comparison plots."""
+        
+        # Get cached data
+        cached_data = get_cached_data()
+        felipe_fid = cached_data['felipe_fid']
+        loader = cached_data['loader']
         
         # Hardcode participant ID (previously selected via dropdown)
         participant_id = 'b7f96273'
