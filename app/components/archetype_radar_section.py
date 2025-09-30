@@ -330,8 +330,7 @@ def register_archetype_radar_callbacks(app):
     def update_radar_charts(view_mode, selected_archetype):
         """Update radar charts based on view mode and selection."""
         
-        # Get cached data
-        cached_data = get_cached_data()
+        # Use the cached data that was loaded during registration
         loader = cached_data['loader']
         
         if view_mode == 'grid':

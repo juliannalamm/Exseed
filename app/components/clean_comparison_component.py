@@ -662,8 +662,7 @@ def register_clean_comparison_callbacks(app):
     def update_comparison(_):
         """Update all comparison plots."""
         
-        # Get cached data
-        cached_data = get_cached_data()
+        # Use the cached data that was loaded during registration
         felipe_fid = cached_data['felipe_fid']
         felipe_traj = cached_data['felipe_traj']
         loader = cached_data['loader']

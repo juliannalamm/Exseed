@@ -406,8 +406,7 @@ def register_comparison_callbacks(app):
     def create_trajectory_animations(_):
         """Create animated trajectory figures."""
         
-        # Get cached data
-        cached_data = get_cached_data()
+        # Use the cached data that was loaded during registration
         felipe_traj = cached_data['felipe_traj']
         loader = cached_data['loader']
         
