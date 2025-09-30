@@ -89,34 +89,46 @@ app.layout = html.Div(
                         "padding": "0 20px"
                     }
                 ),
-                # First row: t-SNE chart and trajectory chart side by side
+                # Container card for cell-level exploration
                 html.Div(
                     style={
-                        "display": "grid",
-                        "gridTemplateColumns": "2fr 1fr",
-                        "gap": "20px",
-                        "alignItems": "center",
+                        "backgroundColor": "rgba(26,26,26,0.5)",
+                        "borderRadius": "12px",
+                        "padding": "20px",
+                        "border": "1px solid rgba(99,110,250,0.3)",
                     },
                     children=[
-                        html.Div([
-                            html.Div(id="embedding-content", children=create_tsne_component())
-                        ]),
+                        # First row: t-SNE chart and trajectory chart side by side
                         html.Div(
-                            id="trajectory-content",
+                            style={
+                                "display": "grid",
+                                "gridTemplateColumns": "2fr 1fr",
+                                "gap": "20px",
+                                "alignItems": "center",
+                                "marginBottom": "20px",
+                            },
                             children=[
-                                create_tsne_trajectory_component(),
+                                html.Div([
+                                    html.Div(id="embedding-content", children=create_tsne_component())
+                                ]),
+                                html.Div(
+                                    id="trajectory-content",
+                                    children=[
+                                        create_tsne_trajectory_component(),
+                                    ],
+                                ),
                             ],
                         ),
-                    ],
-                ),
-                # Second row: Kinematic metrics tabs
-                html.Div(
-                    style={
-                        "width": "100%",
-                    },
-                    children=[
-                        create_cluster_metrics_component(),
-                    ],
+                        # Second row: Kinematic metrics tabs
+                        html.Div(
+                            style={
+                                "width": "100%",
+                            },
+                            children=[
+                                create_cluster_metrics_component(),
+                            ],
+                        ),
+                    ]
                 ),
                 # Section header for P/E axis
                 html.Div(
