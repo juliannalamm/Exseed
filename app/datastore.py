@@ -149,34 +149,60 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
                  for r in TRACK_IDX.itertuples(index=False)}
 
 # ---------- Data access ----------
-# Load all trajectory data once and pre-index by fid for fast lookups
-try:
-    _TRAJ_DF = pd.read_csv(_trajectory_csv())
-    print(f">>> LOADED {len(_TRAJ_DF)} trajectory records successfully")
+# Background loading for trajectory data to avoid blocking hover interactions
+_TRAJ_DF = None
+_TRAJECTORY_INDEX = None
+_TRAJECTORY_LOADING = False
+_TRAJECTORY_LOADED = False
+
+def _load_trajectory_data():
+    """Load and index trajectory data in background."""
+    global _TRAJ_DF, _TRAJECTORY_INDEX, _TRAJECTORY_LOADING, _TRAJECTORY_LOADED
     
-    # Pre-index trajectories by fid for instant lookups
-    _TRAJECTORY_INDEX = {}
-    for fid, group in _TRAJ_DF.groupby('fid'):
-        # Sort by frame_number and select relevant columns
-        traj = group.sort_values('frame_number')[['frame_number', 'x', 'y']].copy()
-        traj = traj.rename(columns={'frame_number': 'frame_num'})
-        _TRAJECTORY_INDEX[fid] = traj.reset_index(drop=True)
+    if _TRAJECTORY_LOADING or _TRAJECTORY_LOADED:
+        return  # Already loading or loaded
     
-    print(f">>> INDEXED {len(_TRAJECTORY_INDEX)} trajectories for fast lookup")
+    _TRAJECTORY_LOADING = True
+    print(">>> Loading trajectory data in background...")
     
-except Exception as e:
-    print(f">>> ERROR loading trajectory data: {e}")
-    _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_number", "x", "y"])
-    _TRAJECTORY_INDEX = {}
+    try:
+        _TRAJ_DF = pd.read_csv(_trajectory_csv())
+        print(f">>> LOADED {len(_TRAJ_DF)} trajectory records successfully")
+        
+        # Pre-index trajectories by fid for instant lookups
+        _TRAJECTORY_INDEX = {}
+        for fid, group in _TRAJ_DF.groupby('fid'):
+            # Sort by frame_number and select relevant columns
+            traj = group.sort_values('frame_number')[['frame_number', 'x', 'y']].copy()
+            traj = traj.rename(columns={'frame_number': 'frame_num'})
+            _TRAJECTORY_INDEX[fid] = traj.reset_index(drop=True)
+        
+        print(f">>> INDEXED {len(_TRAJECTORY_INDEX)} trajectories for fast lookup")
+        _TRAJECTORY_LOADED = True
+        
+    except Exception as e:
+        print(f">>> ERROR loading trajectory data: {e}")
+        _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_number", "x", "y"])
+        _TRAJECTORY_INDEX = {}
+    finally:
+        _TRAJECTORY_LOADING = False
 
 def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
-    """Fetch a single track's frames using pre-indexed data for instant lookup."""
+    """Fetch a single track's frames with fallback for loading state."""
+    # Start background loading if not already started
+    if not _TRAJECTORY_LOADING and not _TRAJECTORY_LOADED:
+        _load_trajectory_data()
+    
+    # If still loading, return empty trajectory with loading message
+    if _TRAJECTORY_LOADING:
+        return pd.DataFrame(columns=["frame_num", "x", "y"])
+    
     try:
         # Convert track_id to fid (Felipe data uses fid)
         fid = int(track_id) if track_id.isdigit() else track_id
         
         # Direct lookup from pre-indexed data
-        if fid in _TRAJECTORY_INDEX:
+        if _TRAJECTORY_INDEX and fid in _TRAJECTORY_INDEX:
             return _TRAJECTORY_INDEX[fid].copy()
         else:
             return pd.DataFrame(columns=["frame_num", "x", "y"])

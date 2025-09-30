@@ -48,8 +48,9 @@ def trajectory_fig_centered(traj, center, color="#636EFA"):
         fig.add_scatter(x=x0, y=y0, mode="lines+markers",
                         marker=dict(size=4, color=color), line=dict(width=2, color=color))
     else:
-        fig.add_annotation(text="Hover or click a point to view its trajectory",
-                           showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)
+        fig.add_annotation(text="Loading trajectories...",
+                           showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5,
+                           font=dict(color="white", size=14))
 
     # fixed compare mode
     R = VIEW_HALF_FIXED
@@ -83,7 +84,12 @@ def get_default_trajectory():
     first_point = POINTS.iloc[0]
     track_id = first_point["track_id"]
     participant_id = first_point["participant_id"]
-    # Get the trajectory data
+    
+    # Start background loading of trajectory data
+    from datastore import _load_trajectory_data
+    _load_trajectory_data()
+    
+    # Get the trajectory data (may be empty if still loading)
     traj = get_trajectory(track_id, participant_id)
     center = CENTER_LOOKUP.get((participant_id, track_id))
     
