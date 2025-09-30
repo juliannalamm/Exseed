@@ -102,6 +102,7 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
             fixedrange=True,
             tick0=0,
             dtick=0.2,
+            constrain='domain',
         ),
         yaxis=dict(
             title="Erraticity", 
@@ -113,13 +114,15 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
             fixedrange=True,
             tick0=0,
             dtick=0.2,
+            scaleanchor='x',
+            scaleratio=1,
+            constrain='domain',
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(26,26,26,0.3)',
         height=250,
         margin=dict(l=50, r=20, t=40, b=40),
-        autosize=False,
-        uirevision='constant',
+        autosize=True,
     )
     
     return fig
