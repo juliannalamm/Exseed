@@ -210,3 +210,7 @@ def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
     except Exception as e:
         print(f"Error reading trajectory data for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])
+
+def is_trajectory_loaded() -> bool:
+    """Return True when trajectory index is ready."""
+    return bool(_TRAJECTORY_LOADED and _TRAJECTORY_INDEX is not None)

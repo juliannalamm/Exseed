@@ -208,6 +208,44 @@ app.layout = html.Div(
                 ),
             ],
         ),
+        # Global loading overlay until trajectories are ready
+        html.Div(
+            id="app-loading-overlay",
+            style={
+                "position": "fixed",
+                "top": 0,
+                "left": 0,
+                "width": "100%",
+                "height": "100%",
+                "backgroundColor": "rgba(0, 0, 0, 0.85)",
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "center",
+                "justifyContent": "center",
+                "zIndex": 1000,
+                "fontFamily": "Arial, sans-serif",
+            },
+            children=[
+                html.Div(
+                    style={
+                        "width": "56px",
+                        "height": "56px",
+                        "border": "6px solid rgba(255,255,255,0.3)",
+                        "borderTop": "6px solid #636EFA",
+                        "borderRadius": "50%",
+                        "animation": "spin 1s linear infinite",
+                        "marginBottom": "18px",
+                    }
+                ),
+                html.H3("Preparing data (this may take a moment)...", style={"margin": "0", "color": "#fff"}),
+                html.P(
+                    "Initializing data and components",
+                    style={"margin": "10px 0 0 0", "color": "#ddd", "fontSize": "14px"}
+                ),
+            ]
+        ),
+        # Poll for readiness
+        dcc.Interval(id="traj-loading-interval", interval=1000, n_intervals=0),
     ],
 )
 
@@ -319,9 +357,11 @@ register_clean_comparison_callbacks(app)
 try:
     from components.tsne_trajectory_component import trajectory_fig_centered, SUBTYPE_COLORS
     from datastore import get_trajectory, CENTER_LOOKUP
+    from datastore import is_trajectory_loaded
 except ImportError:
     from app.components.tsne_trajectory_component import trajectory_fig_centered, SUBTYPE_COLORS
     from app.datastore import get_trajectory, CENTER_LOOKUP
+    from app.datastore import is_trajectory_loaded
 
 def get_default_pe_trajectory():
     """Get a default progressive trajectory for initial display"""
@@ -367,6 +407,36 @@ def update_pe_traj_view(hoverData, clickData):
     traj = get_trajectory(track_id, participant_id)
     center = CENTER_LOOKUP.get((participant_id, track_id))
     return trajectory_fig_centered(traj, center, color=subtype_color)
+
+
+# Overlay visibility controller
+@app.callback(
+    Output("app-loading-overlay", "style"),
+    Input("traj-loading-interval", "n_intervals"),
+    prevent_initial_call=False,
+)
+def hide_overlay_when_ready(_):
+    # Keep showing until trajectories are loaded
+    visible_style = {
+        "position": "fixed",
+        "top": 0,
+        "left": 0,
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "rgba(0, 0, 0, 0.85)",
+        "display": "flex",
+        "flexDirection": "column",
+        "alignItems": "center",
+        "justifyContent": "center",
+        "zIndex": 1000,
+        "fontFamily": "Arial, sans-serif",
+    }
+    if is_trajectory_loaded():
+        # Hide overlay once ready
+        hidden = dict(visible_style)
+        hidden["display"] = "none"
+        return hidden
+    return visible_style
 
 
 # ---------- Entrypoint ----------
