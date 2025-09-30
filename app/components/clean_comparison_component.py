@@ -665,6 +665,7 @@ def register_clean_comparison_callbacks(app):
         # Get cached data
         cached_data = get_cached_data()
         felipe_fid = cached_data['felipe_fid']
+        felipe_traj = cached_data['felipe_traj']
         loader = cached_data['loader']
         
         # Hardcode participant ID (previously selected via dropdown)
