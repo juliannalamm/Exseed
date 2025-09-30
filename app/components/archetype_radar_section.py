@@ -289,31 +289,16 @@ def register_archetype_radar_callbacks(app):
         Dash app instance
     """
     
-    # Try to load data
+    # Import the cached data function from clean_comparison_component
     try:
-        # Try multiple possible paths for dash_data
-        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
-        loader = None
-        for data_path in data_paths:
-            try:
-                print(f"Trying to load archetype data from: {data_path}")
-                loader = ArchetypeDataLoader(data_path)
-                print(f"Successfully loaded archetype data from: {data_path}")
-                break
-            except Exception as path_error:
-                print(f"Failed to load from {data_path}: {path_error}")
-                continue
-        
-        if loader is None:
-            raise Exception("Could not find dash_data in any expected location")
-            
-        has_data = True
-    except Exception as e:
-        print(f"Could not load archetype data for callbacks: {e}")
-        has_data = False
-        loader = None
+        from app.components.clean_comparison_component import get_cached_data
+    except ImportError:
+        from components.clean_comparison_component import get_cached_data
     
-    if not has_data:
+    # Get cached data
+    cached_data = get_cached_data()
+    
+    if not cached_data['has_data']:
         # Return dummy callback if no data
         @app.callback(
             Output('archetype-radars', 'figure'),
@@ -344,6 +329,10 @@ def register_archetype_radar_callbacks(app):
     )
     def update_radar_charts(view_mode, selected_archetype):
         """Update radar charts based on view mode and selection."""
+        
+        # Get cached data
+        cached_data = get_cached_data()
+        loader = cached_data['loader']
         
         if view_mode == 'grid':
             # Show all archetypes in a grid

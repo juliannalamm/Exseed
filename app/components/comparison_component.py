@@ -386,33 +386,16 @@ def create_comparison_section():
 def register_comparison_callbacks(app):
     """Register callbacks for the comparison component."""
     
-    # Try to load data
-    felipe_fid, felipe_traj = load_felipe_data()
-    
+    # Import the cached data function from clean_comparison_component
     try:
-        # Try multiple possible paths for dash_data
-        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
-        loader = None
-        for data_path in data_paths:
-            try:
-                print(f"Trying to load comparison callback data from: {data_path}")
-                loader = ArchetypeDataLoader(data_path)
-                print(f"Successfully loaded comparison callback data from: {data_path}")
-                break
-            except Exception as path_error:
-                print(f"Failed to load from {data_path}: {path_error}")
-                continue
-        
-        if loader is None:
-            raise Exception("Could not find dash_data in any expected location")
-            
-        participant_tracks, participant_frames, _, _ = loader.get_archetype_data('A')
-        has_data = True
-    except Exception as e:
-        print(f"Could not load comparison callback data: {e}")
-        has_data = False
+        from app.components.clean_comparison_component import get_cached_data
+    except ImportError:
+        from components.clean_comparison_component import get_cached_data
     
-    if not has_data:
+    # Get cached data
+    cached_data = get_cached_data()
+    
+    if not cached_data['has_data']:
         return
     
     @app.callback(
@@ -422,6 +405,14 @@ def register_comparison_callbacks(app):
     )
     def create_trajectory_animations(_):
         """Create animated trajectory figures."""
+        
+        # Get cached data
+        cached_data = get_cached_data()
+        felipe_traj = cached_data['felipe_traj']
+        loader = cached_data['loader']
+        
+        # Get participant data
+        participant_tracks, participant_frames, _, _ = loader.get_archetype_data('A')
         
         # Felipe trajectories
         felipe_track_ids = felipe_traj['fid'].unique()[:120]
