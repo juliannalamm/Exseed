@@ -42,9 +42,16 @@ def _csv_uri() -> str:
         return csv_env.strip()
     return str(DATA_PATH / "felipe_data" / "fid_level_data.csv")
 
+def _points_parquet() -> Path:
+    return DATA_PATH / "felipe_data" / "fid_level_data.parquet"
+
 def _trajectory_csv() -> str:
     """Get trajectory CSV path"""
     return str(DATA_PATH / "felipe_data" / "trajectory.csv")
+
+def _trajectory_index_parquet() -> Path:
+    """Preferred precomputed trajectory index parquet file."""
+    return DATA_PATH / "felipe_data" / "trajectory_index.parquet"
 
 def _parquet_glob() -> str:
     # matches participant=<ID>/frames.parquet (unused for Felipe data)
@@ -68,11 +75,17 @@ AXIS_FEATURES = ["P_axis_byls", "E_axis_byls", "entropy"]
 # Felipe data uses 'fid' for track identifier
 BASE_COLUMNS = ["tsne_1", "tsne_2", "fid", "subtype_label"]
 try:
-    # Use fast CSV engine if available
-    try:
-        _df = pd.read_csv(_csv_uri(), engine="pyarrow")
-    except Exception:
-        _df = pd.read_csv(_csv_uri())
+    # Prefer Parquet if available for faster startup
+    if _points_parquet().exists():
+        print(f">>> POINTS: using Parquet {_points_parquet()}")
+        _df = pd.read_parquet(_points_parquet())
+    else:
+        try:
+            print(f">>> POINTS: using CSV (pyarrow) {_csv_uri()}")
+            _df = pd.read_csv(_csv_uri(), engine="pyarrow")
+        except Exception:
+            print(f">>> POINTS: using CSV (default engine) {_csv_uri()}")
+            _df = pd.read_csv(_csv_uri())
     # Rename fid to track_id and fid to participant_id for compatibility
     if "fid" in _df.columns:
         _df["track_id"] = _df["fid"].astype(str)
@@ -99,11 +112,21 @@ def build_track_index():
       view_half_max   (float): global max half-range (useful if you want 'No-clip fixed')
     """
     try:
-        # Load trajectory CSV (Felipe data)
-        try:
-            traj_df = pd.read_csv(_trajectory_csv(), engine="pyarrow")
-        except Exception:
-            traj_df = pd.read_csv(_trajectory_csv())
+        # Load trajectories (prefer precomputed Parquet index if present)
+        if _trajectory_index_parquet().exists():
+            print(f">>> TRAJ: using Parquet index {_trajectory_index_parquet()}")
+            traj_df = pd.read_parquet(_trajectory_index_parquet())
+            if 'frame_number' in traj_df.columns and 'frame_num' not in traj_df.columns:
+                traj_df = traj_df.rename(columns={'frame_number': 'frame_num'})
+        else:
+            try:
+                print(f">>> TRAJ: using CSV (pyarrow) {_trajectory_csv()}")
+                traj_df = pd.read_csv(_trajectory_csv(), engine="pyarrow")
+            except Exception:
+                print(f">>> TRAJ: using CSV (default engine) {_trajectory_csv()}")
+                traj_df = pd.read_csv(_trajectory_csv())
+            if 'frame_number' in traj_df.columns and 'frame_num' not in traj_df.columns:
+                traj_df = traj_df.rename(columns={'frame_number': 'frame_num'})
         
         # Group by fid to compute centers and spans
         grouped = traj_df.groupby('fid').agg({
@@ -158,10 +181,16 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
 # ---------- Data access ----------
 # Load all trajectory data once and build an in-memory index for instant lookups
 try:
-    try:
-        _TRAJ_DF = pd.read_csv(_trajectory_csv(), engine="pyarrow")
-    except Exception:
-        _TRAJ_DF = pd.read_csv(_trajectory_csv())
+    if _trajectory_index_parquet().exists():
+        print(f">>> TRAJ LOAD: using Parquet index {_trajectory_index_parquet()}")
+        _TRAJ_DF = pd.read_parquet(_trajectory_index_parquet())
+    else:
+        try:
+            print(f">>> TRAJ LOAD: using CSV (pyarrow) {_trajectory_csv()}")
+            _TRAJ_DF = pd.read_csv(_trajectory_csv(), engine="pyarrow")
+        except Exception:
+            print(f">>> TRAJ LOAD: using CSV (default engine) {_trajectory_csv()}")
+            _TRAJ_DF = pd.read_csv(_trajectory_csv())
 
     # Build an index { fid -> DataFrame[['frame_num','x','y']] } at import time
     _TRAJECTORY_INDEX = {}
@@ -173,7 +202,7 @@ try:
         for fid, grp in _TRAJ_DF.groupby('fid'):
             frames = grp.sort_values('frame_num')[['frame_num', 'x', 'y']].reset_index(drop=True)
             _TRAJECTORY_INDEX[fid] = frames
-    print(f">>> TRAJ INDEX READY: {len(_TRAJECTORY_INDEX)} tracks")
+    print(f">>> TRAJ INDEX READY: {len(_TRAJECTORY_INDEX)} tracks | rows={len(_TRAJ_DF)}")
 except Exception as e:
     print(f">>> ERROR loading trajectory data: {e}")
     _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_num", "x", "y"])
