@@ -148,15 +148,48 @@ app.index_string = '''
             
             /* Custom tab styling */
             .tab {
-                color: black !important;
+                color: white !important;
+                background: linear-gradient(135deg, #404040 0%, #353535 100%) !important;
+                border: none !important;
+                border-radius: 25px !important;
+                padding: 10px 8px !important;
+                font-weight: 500 !important;
+                font-size: 14px !important;
+                margin-right: 12px !important;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+                transition: all 0.3s ease !important;
+                cursor: pointer !important;
             }
             
             .tab--selected {
                 color: white !important;
+                background: linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%) !important;
+                box-shadow: 0 4px 8px rgba(99, 110, 250, 0.3) !important;
+                transform: translateY(-2px) !important;
             }
             
-            .tab:hover {
+            .tab--selected *,
+            .tab--selected div {
                 color: white !important;
+            }
+            
+            /* Override any Dash default styles */
+            div[role="tab"][aria-selected="true"],
+            div[role="tab"][aria-selected="true"] * {
+                color: white !important;
+            }
+            
+            /* Hover effects */
+            .tab:hover {
+                background: linear-gradient(135deg, #505050 0%, #454545 100%) !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+            }
+            
+            .tab--selected:hover,
+            div[role="tab"][aria-selected="true"]:hover {
+                background: linear-gradient(135deg, #7d7eff 0%, #636EFA 100%) !important;
+                box-shadow: 0 5px 10px rgba(99, 110, 250, 0.4) !important;
             }
         </style>
     </head>

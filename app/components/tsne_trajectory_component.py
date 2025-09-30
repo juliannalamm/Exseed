@@ -14,7 +14,16 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP, POINTS
 
-def trajectory_fig_centered(traj, center):
+# Color mapping for each motility type (matches t-SNE plot colors)
+SUBTYPE_COLORS = {
+    "progressive": "#636EFA",      # blue (Plotly default color 0)
+    "rapid_progressive": "#EF553B", # red (Plotly default color 1)
+    "non_progressive": "#00CC96",   # teal/green (Plotly default color 2)
+    "erratic": "#AB63FA",           # purple (Plotly default color 3)
+    "immotile": "#FFA15A"           # orange (Plotly default color 4)
+}
+
+def trajectory_fig_centered(traj, center, color="#636EFA"):
     """
     Center the track by subtracting its bbox center (or precomputed center).
     Uses a fixed compare field-of-view (no view mode, no title).
@@ -37,7 +46,7 @@ def trajectory_fig_centered(traj, center):
             x0 = x0[::step]; y0 = y0[::step]
 
         fig.add_scatter(x=x0, y=y0, mode="lines+markers",
-                        marker=dict(size=4), line=dict(width=2))
+                        marker=dict(size=4, color=color), line=dict(width=2, color=color))
     else:
         fig.add_annotation(text="Hover or click a point to view its trajectory",
                            showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)
@@ -125,7 +134,10 @@ def register_tsne_trajectory_callbacks(app):
         p = ev["points"][0]
         customdata = p["customdata"]
         track_id, participant_id, klass = customdata[0], customdata[1], customdata[2]
+        
+        # Get the color for this subtype
+        subtype_color = SUBTYPE_COLORS.get(klass, "#636EFA")
 
         traj = get_trajectory(track_id, participant_id)
         center = CENTER_LOOKUP.get((participant_id, track_id))  # may be None; handled inside
-        return trajectory_fig_centered(traj, center)
+        return trajectory_fig_centered(traj, center, color=subtype_color)

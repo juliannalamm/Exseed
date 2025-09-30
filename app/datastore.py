@@ -8,11 +8,25 @@ from typing import Dict, Tuple
 # ---------- Data Source Configuration ----------
 # Check if we're in container (files in /app) or local development (files in parent)
 def _get_data_path() -> Path:
-    """Determine the correct data path for current environment."""
+    """Determine the correct data path for current environment.
+
+    Prefer local cwd if data is present; otherwise fall back to parent.
+    This supports both container (WORKDIR=/app) and local runs.
+    """
+    # Prefer Felipe data if present
+    if Path("felipe_data/fid_level_data.csv").exists():
+        return Path(".")
+    if Path("../felipe_data/fid_level_data.csv").exists():
+        return Path("..")
+
+    # Back-compat with older CSV
     if Path("kmeans_results.csv").exists():
-        return Path(".")  # Container
-    else:
-        return Path("..")  # Local development
+        return Path(".")
+    if Path("../kmeans_results.csv").exists():
+        return Path("..")
+
+    # Default to cwd
+    return Path(".")
 
 DATA_PATH = _get_data_path()
 

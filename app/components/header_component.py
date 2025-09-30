@@ -66,7 +66,7 @@ def create_header_component():
         dark=True,
         class_name="shadow-lg",
         style={
-            "background": "linear-gradient(135deg, #7aa2f7 0%, #5a7fd4 100%)",
+            "background": "linear-gradient(135deg, #636EFA 0%, #4a4ec4 100%)",
             "borderBottom": "2px solid rgba(255, 255, 255, 0.1)",
             "backdropFilter": "blur(10px)",
             "padding": "0 !important",

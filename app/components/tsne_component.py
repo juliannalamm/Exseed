@@ -65,9 +65,9 @@ def create_tsne_component():
     """Create the t-SNE component with graph"""
     return html.Div([
         html.Div([
-            html.H2("Sperm Motility Analysis", 
+            html.H2("Sperm Motility Clustered by Movement Type", 
                     style={"color": "white", "marginBottom": "8px", "fontSize": "24px", "fontWeight": "600", "textAlign": "center"}),
-            html.P("Interactive t-SNE visualization of sperm motility patterns", 
+            html.P("Each point is an individual cell, hover over a point to view it's trajectory!", 
                    style={"color": "#cccccc", "marginBottom": "16px", "fontSize": "14px", "textAlign": "center"}),
         ]),
         html.Div(
