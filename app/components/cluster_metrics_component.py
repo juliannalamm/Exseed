@@ -262,7 +262,7 @@ def create_cluster_metrics_component():
                                 id="track-display",
                                 style={"height": "300px"},
                                 config={"responsive": False},
-                                figure=_get_default_track_figure()
+                                figure=_create_track_figure("142", "142", color=SUBTYPE_COLORS["progressive"])
                             )
                         ],
                         style={

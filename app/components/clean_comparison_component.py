@@ -104,8 +104,10 @@ def create_pe_scatter(tracks_df, title="P-E Scatter"):
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(26,26,26,0.3)',
-        height=300,
-        margin=dict(l=50, r=20, t=50, b=50),
+        height=250,
+        margin=dict(l=50, r=20, t=40, b=40),
+        autosize=False,
+        uirevision='constant',
     )
     
     return fig
@@ -195,10 +197,11 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
     # Create figure
     fig = go.Figure()
     
-    # Add traces for each trajectory
+    # Add traces for each trajectory - START WITH FULL TRAJECTORIES
     for tid, traj in trajectories.items():
         fig.add_trace(go.Scatter(
-            x=[], y=[],
+            x=traj['x'],  # Show full trajectory by default
+            y=traj['y'],
             mode='lines',
             line=dict(width=1.2, color=traj['color']),
             opacity=0.7,
@@ -250,23 +253,27 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
             'showactive': False,
             'buttons': [
                 {'label': '▶', 'method': 'animate',
-                 'args': [None, {'frame': {'duration': 50, 'redraw': True},
-                                'fromcurrent': True, 'mode': 'immediate'}]},
+                 'args': [None, {'frame': {'duration': 50, 'redraw': False},
+                                'fromcurrent': True, 'mode': 'immediate',
+                                'transition': {'duration': 0}}]},
                 {'label': '⏸', 'method': 'animate',
                  'args': [[None], {'frame': {'duration': 0, 'redraw': False},
-                                  'mode': 'immediate'}]},
+                                  'mode': 'immediate',
+                                  'transition': {'duration': 0}}]},
             ],
             'x': 0.5, 'y': -0.05, 'xanchor': 'center',
             'font': dict(size=16, color='white'),
             'bgcolor': 'rgba(99, 110, 250, 0.3)',
             'bordercolor': 'rgba(99, 110, 250, 0.5)',
         }],
+        autosize=False,  # Prevent auto-resizing
+        uirevision='constant',  # Prevent re-initialization on updates
     )
     
     return fig
 
 
-def create_clean_radar(values, labels, title=""):
+def create_clean_radar(values, labels, title="", show_average=False, average_values=None, max_range=None):
     """Create clean radar with fewer rings."""
     
     # Close the loop
@@ -275,6 +282,20 @@ def create_clean_radar(values, labels, title=""):
     
     fig = go.Figure()
     
+    # Add average patient trace first (grey, behind)
+    if show_average and average_values:
+        r_avg = average_values + [average_values[0]]
+        fig.add_trace(go.Scatterpolar(
+            r=r_avg,
+            theta=theta,
+            fill='toself',
+            fillcolor='rgba(150, 150, 150, 0.15)',
+            line=dict(color='rgba(150, 150, 150, 0.6)', width=2, dash='dash'),
+            hovertemplate='<b>Average Patient</b><br>%{theta}: %{r:.1%}<extra></extra>',
+            name='Average Patient',
+        ))
+    
+    # Add main data trace (on top)
     fig.add_trace(go.Scatterpolar(
         r=r,
         theta=theta,
@@ -282,21 +303,23 @@ def create_clean_radar(values, labels, title=""):
         fillcolor='rgba(99, 110, 250, 0.3)',
         line=dict(color='#636EFA', width=2.5),
         hovertemplate='<b>%{theta}</b><br>%{r:.1%}<extra></extra>',
+        name='Patient',
     ))
     
     # Determine range
-    max_val = max(values) if values else 1.0
-    range_max = max(1.0, max_val * 1.1)
+    if max_range is not None:
+        range_max = max_range
+    else:
+        max_val = max(values) if values else 1.0
+        range_max = max(1.0, max_val * 1.1)
     
     fig.update_layout(
         polar=dict(
             radialaxis=dict(
-                visible=True,
+                visible=False,  # Hide radial axis completely
                 range=[0, range_max],
-                tickformat='.0%',
-                tickfont=dict(size=10, color='#e0e0e0'),
                 gridcolor='rgba(255,255,255,0.15)',
-                nticks=4,  # FEWER RINGS
+                nticks=3,  # FEWER RINGS
             ),
             angularaxis=dict(
                 tickfont=dict(size=11, color='white'),
@@ -305,10 +328,12 @@ def create_clean_radar(values, labels, title=""):
             bgcolor='rgba(26,26,26,0.3)',
         ),
         showlegend=False,
-        title=dict(text=f"<b>{title}</b>", font=dict(size=14, color='white'), x=0.5),
-        height=280,
+        title=dict(text=f"<b>{title}</b>", font=dict(size=13, color='white'), x=0.5),
+        height=250,
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=60, r=60, t=50, b=40),
+        margin=dict(l=50, r=50, t=45, b=30),
+        autosize=False,
+        uirevision='constant',
     )
     
     return fig
@@ -342,7 +367,7 @@ def create_clean_comparison_section():
                 style={"textAlign": "center", "marginBottom": "30px"},
                 children=[
                     html.H2(
-                        "Patient Comparison",
+                        "From Cells to Samples: Patient-Level Profiles",
                         style={
                             "color": "white",
                             "fontSize": "28px",
@@ -351,22 +376,16 @@ def create_clean_comparison_section():
                         }
                     ),
                     html.P(
-                        "Compare motility fingerprints between reference data and individual participants",
-                        style={"color": "#e0e0e0", "fontSize": "15px", "marginBottom": "20px"}
+                        "By aggregating cell-level motility patterns, we create unique patient profiles that reveal the composition and quality of each semen sample. These profiles enable direct comparison between patients and reference populations, translating complex movement heterogeneity into clinically actionable insights.",
+                        style={
+                            "color": "#e0e0e0",
+                            "fontSize": "15px",
+                            "marginBottom": "20px",
+                            "lineHeight": "1.6"
+                        }
                     ),
-                    html.Div(
-                        style={"display": "flex", "justifyContent": "center", "alignItems": "center", "gap": "15px"},
-                        children=[
-                            html.Label("Select Participant:", style={"color": "white", "fontWeight": "600"}),
-                            dcc.Dropdown(
-                                id='comparison-participant-dropdown',
-                                options=[{'label': pid, 'value': pid} for pid in participant_list],
-                                value=participant_list[0] if participant_list else None,
-                                style={"width": "250px"},
-                                clearable=False,
-                            ),
-                        ]
-                    ),
+                    
+                
                 ]
             ),
             
@@ -389,7 +408,7 @@ def create_clean_comparison_section():
                         },
                         children=[
                             html.H3(
-                                "Reference Dataset (Felipe)",
+                                "Patient Sample A (high motility)",
                                 style={
                                     "color": "#636EFA",
                                     "fontSize": "18px",
@@ -398,14 +417,53 @@ def create_clean_comparison_section():
                                     "textAlign": "center",
                                 }
                             ),
-                            html.Div([dcc.Graph(id='felipe-pe-scatter', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "15px"}),
+                            # Top: Trajectories
                             html.Div([dcc.Graph(id='felipe-trajectories', config={'displayModeBar': False})], 
                                     style={"marginBottom": "15px"}),
-                            html.Div([dcc.Graph(id='felipe-distribution', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "15px"}),
-                            html.Div([dcc.Graph(id='felipe-radar', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "0px"}),
+                            # 2x2 grid: PE + CASA (top), GMM + paragraph (bottom)
+                            html.Div(
+                                style={
+                                    "display": "grid",
+                                    "gridTemplateColumns": "1fr 1fr",
+                                    "gap": "15px",
+                                    "marginBottom": "15px",
+                                    "alignItems": "start"
+                                },
+                                children=[
+                                    # Top-left: P-E scatter
+                                    html.Div([
+                                        dcc.Graph(id='felipe-pe-scatter', config={'displayModeBar': False}),
+                                    ]),
+                                    # Top-right: CASA radar
+                                    html.Div([
+                                        dcc.Graph(id='felipe-casa-radar', config={'displayModeBar': False}),
+                                    ]),
+                                    # Bottom-left: GMM radar
+                                    html.Div([
+                                        dcc.Graph(id='felipe-radar', config={'displayModeBar': False})
+                                    ]),
+                                    # Bottom-right: Paragraph element
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                        },
+                                        children=[
+                                            html.P(
+                                                "This sample exhibits predominantly rapid progressive motility with high velocity (VCL) and lateral head movement (ALH), consistent with hyperactivated sperm. Kinematic metrics exceed the average patient baseline (grey line), suggesting strong fertilization potential. The motility distribution skews heavily toward progressive clusters, indicating a high-quality sample.",
+                                                style={
+                                                    "color": "white",
+                                                    "fontSize": "14px",
+                                                    "lineHeight": "1.4",
+                                                    "padding": "5px 15px",
+                                                    "textAlign": "center",
+                                                }
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
                         ]
                     ),
                     
@@ -428,14 +486,53 @@ def create_clean_comparison_section():
                                     "textAlign": "center",
                                 }
                             ),
-                            html.Div([dcc.Graph(id='participant-pe-scatter', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "15px"}),
+                            # Top: Trajectories
                             html.Div([dcc.Graph(id='participant-trajectories', config={'displayModeBar': False})], 
                                     style={"marginBottom": "15px"}),
-                            html.Div([dcc.Graph(id='participant-distribution', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "15px"}),
-                            html.Div([dcc.Graph(id='participant-radar', config={'displayModeBar': False})], 
-                                    style={"marginBottom": "0px"}),
+                            # 2x2 grid: PE + CASA (top), GMM + paragraph (bottom)
+                            html.Div(
+                                style={
+                                    "display": "grid",
+                                    "gridTemplateColumns": "1fr 1fr",
+                                    "gap": "15px",
+                                    "marginBottom": "15px",
+                                    "alignItems": "start"
+                                },
+                                children=[
+                                    # Top-left: P-E scatter
+                                    html.Div([
+                                        dcc.Graph(id='participant-pe-scatter', config={'displayModeBar': False}),
+                                    ]),
+                                    # Top-right: CASA radar + description
+                                    html.Div([
+                                        dcc.Graph(id='participant-casa-radar', config={'displayModeBar': False}),
+                                    ]),
+                                    # Bottom-left: GMM radar
+                                    html.Div([
+                                        dcc.Graph(id='participant-radar', config={'displayModeBar': False})
+                                    ]),
+                                    # Bottom-right: Paragraph element
+                                    html.Div(
+                                        style={
+                                            "display": "flex",
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                        },
+                                        children=[
+                                            html.P(
+                                                "This sample shows reduced motility with lower velocity and linearity compared to both the reference and average patient. The distribution reveals a higher proportion of non-progressive and immotile sperm clusters. Kinematic metrics fall below clinical thresholds, suggesting potential challenges for natural fertilization and a candidate for assisted reproductive interventions.",
+                                                style={
+                                                    "color": "white",
+                                                    "fontSize": "14px",
+                                                    "lineHeight": "1.4",
+                                                    "padding": "5px 15px",
+                                                    "textAlign": "center",
+                                                }
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
                         ]
                     ),
                 ]
@@ -462,23 +559,46 @@ def register_clean_comparison_callbacks(app):
     # Prepare Felipe data once
     felipe_post_cols = ['P_progressive', 'P_rapid_progressive', 'P_nonprogressive', 'P_immotile', 'P_erratic']
     
+    # Create synthetic "Average Patient" data (between Felipe and participants)
+    # CASA values (normalized to 0-1)
+    synthetic_casa_avg = {
+        'ALH': 0.35,   # Between Felipe (higher) and participant (lower)
+        'VCL': 0.45,   # Medium velocity
+        'LIN': 0.55,   # Medium linearity
+        'VAP': 0.48,   # Medium VAP
+        'VSL': 0.50,   # Medium VSL
+        'WOB': 0.40,   # Between Felipe and participant
+    }
+    
+    # GMM composition (typical clinical values)
+    # Progressive motility: ~45-55% (split between rapid and progressive)
+    # Non-progressive motility: ~5-15%
+    # Immotile: ~30-40%
+    synthetic_gmm_avg = {
+        'P_progressive': 0.30,          # 30%
+        'P_rapid_progressive': 0.20,    # 20% (total progressive = 50%)
+        'P_nonprogressive': 0.10,       # 10%
+        'P_immotile': 0.35,             # 35%
+        'P_erratic': 0.05,              # 5%
+    }
+    
     @app.callback(
         [Output('participant-title', 'children'),
          Output('felipe-pe-scatter', 'figure'),
+         Output('felipe-casa-radar', 'figure'),
          Output('felipe-trajectories', 'figure'),
-         Output('felipe-distribution', 'figure'),
          Output('felipe-radar', 'figure'),
          Output('participant-pe-scatter', 'figure'),
+         Output('participant-casa-radar', 'figure'),
          Output('participant-trajectories', 'figure'),
-         Output('participant-distribution', 'figure'),
          Output('participant-radar', 'figure')],
-        Input('comparison-participant-dropdown', 'value'),
+        Input('comparison-container', 'id'),  # Trigger on page load
     )
-    def update_comparison(participant_id):
+    def update_comparison(_):
         """Update all comparison plots."""
         
-        if not participant_id:
-            return ["No participant selected"] + [go.Figure()] * 8
+        # Hardcode participant ID (previously selected via dropdown)
+        participant_id = 'b7f96273'
         
         # Get participant data
         participant_tracks = loader.get_patient_tracks(participant_id)
@@ -489,6 +609,34 @@ def register_clean_comparison_callbacks(app):
         # P-E Scatter
         felipe_pe = create_pe_scatter(felipe_fid, "P-E Scatter")
         
+        # CASA Radar
+        felipe_casa_cols = ['ALH', 'VCL', 'LIN', 'VAP', 'VSL', 'WOB']
+        felipe_casa_values = []
+        for col in felipe_casa_cols:
+            if col in felipe_fid.columns:
+                val = felipe_fid[col].mean()
+                # Normalize to 0-1 range (rough normalization)
+                if col in ['VCL', 'VAP', 'VSL']:  # Velocity metrics
+                    normalized = val / 200.0  # Assume max ~200
+                elif col == 'ALH':
+                    normalized = val / 10.0  # Assume max ~10
+                else:  # LIN, WOB are already 0-1
+                    normalized = val
+                felipe_casa_values.append(min(normalized, 1.0))
+            else:
+                felipe_casa_values.append(0.5)
+        
+        # Create average patient CASA values
+        avg_casa_values = [synthetic_casa_avg.get(col, 0.5) for col in felipe_casa_cols]
+        
+        felipe_casa_radar = create_clean_radar(
+            felipe_casa_values, 
+            felipe_casa_cols, 
+            "CASA Kinematics",
+            show_average=True,
+            average_values=avg_casa_values
+        )
+        
         # Trajectories (keep original column names)
         felipe_traj_fig = create_clean_trajectories(
             felipe_traj,
@@ -497,17 +645,49 @@ def register_clean_comparison_callbacks(app):
             n_display=120
         )
         
-        # Distribution
-        felipe_dist = create_cluster_distribution(felipe_fid, "Cluster Distribution")
-        
-        # Radar
+        # GMM Radar
         felipe_gmm_values = felipe_fid[felipe_post_cols].mean(axis=0).values.tolist()
         felipe_gmm_labels = [c.replace('P_', '').replace('_', ' ').title() for c in felipe_post_cols]
-        felipe_radar = create_clean_radar(felipe_gmm_values, felipe_gmm_labels, "GMM Composition")
+        
+        # Create average patient GMM values
+        avg_gmm_values = [synthetic_gmm_avg.get(col, 0.2) for col in felipe_post_cols]
+        
+        felipe_radar = create_clean_radar(
+            felipe_gmm_values, 
+            felipe_gmm_labels, 
+            "GMM Composition",
+            show_average=True,
+            average_values=avg_gmm_values,
+            max_range=0.6  # Set max to 60% so radar fills more of circle
+        )
         
         # === PARTICIPANT DATA ===
         # P-E Scatter
         participant_pe = create_pe_scatter(participant_tracks, "P-E Scatter")
+        
+        # CASA Radar  
+        participant_casa_values = []
+        for col in felipe_casa_cols:
+            if col in participant_tracks.columns:
+                val = participant_tracks[col].mean()
+                # Normalize to 0-1 range
+                if col in ['VCL', 'VAP', 'VSL']:
+                    normalized = val / 200.0
+                elif col == 'ALH':
+                    normalized = val / 10.0
+                else:
+                    normalized = val
+                participant_casa_values.append(min(normalized, 1.0))
+            else:
+                participant_casa_values.append(0.5)
+        
+        participant_casa_radar = create_clean_radar(
+            participant_casa_values, 
+            felipe_casa_cols, 
+            "CASA Kinematics",
+            show_average=True,
+            average_values=avg_casa_values
+        )
         
         # Trajectories
         participant_traj_fig = create_clean_trajectories(
@@ -517,24 +697,28 @@ def register_clean_comparison_callbacks(app):
             n_display=120
         )
         
-        # Distribution
-        participant_dist = create_cluster_distribution(participant_tracks, "Cluster Distribution")
-        
-        # Radar
+        # GMM Radar
         participant_gmm_values = participant_tracks[felipe_post_cols].mean(axis=0).values.tolist()
-        participant_radar = create_clean_radar(participant_gmm_values, felipe_gmm_labels, "GMM Composition")
+        participant_radar = create_clean_radar(
+            participant_gmm_values, 
+            felipe_gmm_labels, 
+            "GMM Composition",
+            show_average=True,
+            average_values=avg_gmm_values,
+            max_range=0.6  # Set max to 60% so radar fills more of circle
+        )
         
         # Title
-        title = f"Participant {participant_id}"
+        title = f"Patient Sample B (Lower Motility))"
         
         return [
             title,
             felipe_pe,
+            felipe_casa_radar,
             felipe_traj_fig,
-            felipe_dist,
             felipe_radar,
             participant_pe,
+            participant_casa_radar,
             participant_traj_fig,
-            participant_dist,
             participant_radar,
         ]

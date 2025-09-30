@@ -61,15 +61,16 @@ app.layout = html.Div(
             children=[
                 # Page title
                 html.H1(
-                    "Single-Cell Phenotype Fingerprints",
+                    "Patient Motility Fingerprinting",
                     style={
                         "color": "white",
                         "textAlign": "center",
-                        "marginBottom": "16px",
+                        "marginBottom": "10px",
                         "fontSize": "32px",
                         "fontWeight": "700"
                     }
                 ),
+              
                 # Introduction paragraph
                 html.P(
                     [
@@ -118,29 +119,28 @@ app.layout = html.Div(
                     ],
                 ),
                 # Section header for P/E axis
-                html.H2(
-                    "Generating Continuous Motility Scores",
-                    style={
-                        "color": "white",
-                        "textAlign": "center",
-                        "marginTop": "20px",
-                        "marginBottom": "16px",
-                        "fontSize": "28px",
-                        "fontWeight": "700"
-                    }
-                ),
-                # Description paragraph
-                html.P(
-                    "Our cluster-derived labels serve as a soft “ground truth” that condenses multivariate CASA measurements into a single progressivity–erraticity score, allowing transitional motility behaviors to be represented and providing clinically interpretable readouts.",
-                    style={
-                        "color": "#e0e0e0",
-                        "textAlign": "center",
-                        "maxWidth": "900px",
-                        "margin": "0 auto 30px auto",
-                        "fontSize": "16px",
-                        "lineHeight": "1.6",
-                        "padding": "0 20px"
-                    }
+                html.Div(
+                    style={"textAlign": "center", "marginTop": "20px", "marginBottom": "30px"},
+                    children=[
+                        html.H2(
+                            "Generating Continuous Motility Scores",
+                            style={
+                                "color": "white",
+                                "fontSize": "28px",
+                                "fontWeight": "700",
+                                "marginBottom": "15px",
+                            }
+                        ),
+                        html.P(
+                            "Our cluster-derived labels serve as a soft 'ground truth' that condenses multivariate CASA measurements into a single progressivity–erraticity score, allowing transitional motility behaviors to be represented and providing clinically interpretable readouts.",
+                            style={
+                                "color": "#e0e0e0",
+                                "fontSize": "15px",
+                                "marginBottom": "20px",
+                                "lineHeight": "1.6"
+                            }
+                        ),
+                    ]
                 ),
                 # Third row: P/E axis chart and trajectory chart side by side
                 html.Div(
@@ -171,14 +171,6 @@ app.layout = html.Div(
                                                 id="pe-traj-view",
                                                 style={"height": "380px"},
                                                 config={"responsive": False},
-                                                figure=go.Figure().update_layout(
-                                                    margin=dict(l=10, r=10, t=40, b=10),
-                                                    paper_bgcolor="#1a1a1a",
-                                                    plot_bgcolor="#1a1a1a",
-                                                    showlegend=False,
-                                                    xaxis=dict(visible=False),
-                                                    yaxis=dict(visible=False),
-                                                )
                                             ),
                                             style={
                                                 "borderRadius": "12px",
@@ -364,19 +356,39 @@ except ImportError:
     from app.components.tsne_trajectory_component import trajectory_fig_centered, SUBTYPE_COLORS
     from app.datastore import get_trajectory, CENTER_LOOKUP
 
+def get_default_pe_trajectory():
+    """Get a default progressive trajectory for initial display"""
+    # Use the same progressive track as cluster metrics (track 142)
+    try:
+        traj = get_trajectory("142", "142")
+        center = CENTER_LOOKUP.get(("142", "142"))
+        return trajectory_fig_centered(traj, center, color=SUBTYPE_COLORS.get("progressive", "#636EFA"))
+    except:
+        # Fallback to empty figure if data not available
+        return go.Figure().update_layout(
+            margin=dict(l=10, r=10, t=40, b=10),
+            paper_bgcolor="#1a1a1a",
+            plot_bgcolor="#1a1a1a",
+            showlegend=False,
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+        )
+
 @app.callback(
     Output("pe-traj-view", "figure"),
     Input("pe-axis", "hoverData"),
     Input("pe-axis", "clickData"),
-    prevent_initial_call=True,
+    prevent_initial_call=False,
 )
 def update_pe_traj_view(hoverData, clickData):
     from dash import callback_context
     # Prefer click over hover
     ctx = callback_context
     ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("pe-axis.clickData")) else hoverData
+    
+    # On initial call or no data, show default trajectory
     if not ev or "points" not in ev:
-        raise dash.exceptions.PreventUpdate
+        return get_default_pe_trajectory()
 
     p = ev["points"][0]
     customdata = p["customdata"]
