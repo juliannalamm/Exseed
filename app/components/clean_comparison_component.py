@@ -346,10 +346,28 @@ def create_clean_comparison_section():
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         has_data = True
         participant_list = loader.patient_df['participant_id'].unique().tolist()
-    except:
+    except Exception as e:
+        print(f"Error loading dash data: {e}")
+        print(f"Current working directory: {Path.cwd()}")
+        print(f"Looking for dash_data in: {Path('dash_data').absolute()}")
         has_data = False
         participant_list = []
     
@@ -548,9 +566,27 @@ def register_clean_comparison_callbacks(app):
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         has_data = True
-    except:
+    except Exception as e:
+        print(f"Error loading dash data in callbacks: {e}")
+        print(f"Current working directory: {Path.cwd()}")
+        print(f"Looking for dash_data in: {Path('dash_data').absolute()}")
         has_data = False
     
     if not has_data or felipe_fid is None:

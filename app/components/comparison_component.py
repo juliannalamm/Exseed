@@ -187,7 +187,22 @@ def create_comparison_section():
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load comparison data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded comparison data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         participant_tracks, participant_frames, participant_summary, participant_info = \
             loader.get_archetype_data('A')  # Assuming 'A' is 158d356b
         has_participant_data = True
@@ -375,10 +390,26 @@ def register_comparison_callbacks(app):
     felipe_fid, felipe_traj = load_felipe_data()
     
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load comparison callback data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded comparison callback data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         participant_tracks, participant_frames, _, _ = loader.get_archetype_data('A')
         has_data = True
-    except:
+    except Exception as e:
+        print(f"Could not load comparison callback data: {e}")
         has_data = False
     
     if not has_data:

@@ -30,7 +30,22 @@ def create_archetype_radar_section():
     
     # Try to load the data
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load archetype data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded archetype data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         archetypes = loader.get_archetype_list()
         has_data = len(archetypes) > 0
     except Exception as e:
@@ -276,7 +291,22 @@ def register_archetype_radar_callbacks(app):
     
     # Try to load data
     try:
-        loader = ArchetypeDataLoader("dash_data")
+        # Try multiple possible paths for dash_data
+        data_paths = ["dash_data", "app/dash_data", "./app/dash_data"]
+        loader = None
+        for data_path in data_paths:
+            try:
+                print(f"Trying to load archetype data from: {data_path}")
+                loader = ArchetypeDataLoader(data_path)
+                print(f"Successfully loaded archetype data from: {data_path}")
+                break
+            except Exception as path_error:
+                print(f"Failed to load from {data_path}: {path_error}")
+                continue
+        
+        if loader is None:
+            raise Exception("Could not find dash_data in any expected location")
+            
         has_data = True
     except Exception as e:
         print(f"Could not load archetype data for callbacks: {e}")
