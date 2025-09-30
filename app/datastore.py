@@ -4,6 +4,8 @@ import numpy as np
 import os
 from pathlib import Path
 from typing import Dict, Tuple
+import time
+import pickle
 
 # ---------- Data Source Configuration ----------
 # Check if we're in container (files in /app) or local development (files in parent)
@@ -181,28 +183,37 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
 # ---------- Data access ----------
 # Load all trajectory data once and build an in-memory index for instant lookups
 try:
-    if _trajectory_index_parquet().exists():
-        print(f">>> TRAJ LOAD: using Parquet index {_trajectory_index_parquet()}")
-        _TRAJ_DF = pd.read_parquet(_trajectory_index_parquet())
+    t0_total = time.perf_counter()
+    # Prefer binary index, then parquet, then CSV
+    pkl = DATA_PATH / "felipe_data" / "trajectory_index.pkl"
+    if pkl.exists():
+        print(f">>> TRAJ INDEX: using Binary Index {pkl}")
+        t0 = time.perf_counter()
+        with open(pkl, 'rb') as f:
+            _TRAJECTORY_INDEX = pickle.load(f)
+        t1 = time.perf_counter()
+        _TRAJ_DF = pd.DataFrame(columns=["fid","frame_num","x","y"])  # minimal placeholder
+        print(f">>> TRAJ INDEX (pkl) loaded in {t1-t0:.2f}s | tracks={len(_TRAJECTORY_INDEX)}")
     else:
-        try:
-            print(f">>> TRAJ LOAD: using CSV (pyarrow) {_trajectory_csv()}")
-            _TRAJ_DF = pd.read_csv(_trajectory_csv(), engine="pyarrow")
-        except Exception:
-            print(f">>> TRAJ LOAD: using CSV (default engine) {_trajectory_csv()}")
-            _TRAJ_DF = pd.read_csv(_trajectory_csv())
-
-    # Build an index { fid -> DataFrame[['frame_num','x','y']] } at import time
-    _TRAJECTORY_INDEX = {}
-    if not _TRAJ_DF.empty:
-        # Normalize frame column once
-        if 'frame_number' in _TRAJ_DF.columns:
+        if _trajectory_index_parquet().exists():
+            print(f">>> TRAJ INDEX: building from Parquet {_trajectory_index_parquet()}")
+            t0 = time.perf_counter()
+            _TRAJ_DF = pd.read_parquet(_trajectory_index_parquet())
+        else:
+            try:
+                print(f">>> TRAJ INDEX: building from CSV (pyarrow) {_trajectory_csv()}")
+                _TRAJ_DF = pd.read_csv(_trajectory_csv(), engine="pyarrow")
+            except Exception:
+                print(f">>> TRAJ INDEX: building from CSV (default engine) {_trajectory_csv()}")
+                _TRAJ_DF = pd.read_csv(_trajectory_csv())
+        if 'frame_number' in _TRAJ_DF.columns and 'frame_num' not in _TRAJ_DF.columns:
             _TRAJ_DF = _TRAJ_DF.rename(columns={'frame_number': 'frame_num'})
-        # Group and sort once, store compact frames for each fid
+        _TRAJECTORY_INDEX = {}
         for fid, grp in _TRAJ_DF.groupby('fid'):
-            frames = grp.sort_values('frame_num')[['frame_num', 'x', 'y']].reset_index(drop=True)
-            _TRAJECTORY_INDEX[fid] = frames
-    print(f">>> TRAJ INDEX READY: {len(_TRAJECTORY_INDEX)} tracks | rows={len(_TRAJ_DF)}")
+            _TRAJECTORY_INDEX[fid] = grp.sort_values('frame_num')[["frame_num", 'x', 'y']].reset_index(drop=True)
+        t1 = time.perf_counter()
+        print(f">>> TRAJ INDEX built in {t1-t0:.2f}s | tracks={len(_TRAJECTORY_INDEX)} | rows={len(_TRAJ_DF)}")
+    print(f">>> TRAJ TOTAL init took {time.perf_counter()-t0_total:.2f}s")
 except Exception as e:
     print(f">>> ERROR loading trajectory data: {e}")
     _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_num", "x", "y"])
@@ -215,7 +226,13 @@ def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
         fid = int(track_id) if isinstance(track_id, str) and track_id.isdigit() else track_id
         # Direct index lookup first
         if fid in _TRAJECTORY_INDEX:
-            return _TRAJECTORY_INDEX[fid].copy()
+            val = _TRAJECTORY_INDEX[fid]
+            # If binary index provides ndarray, convert to DataFrame
+            if isinstance(val, pd.DataFrame):
+                return val.copy()
+            else:
+                # Expect shape (N,3): frame_num, x, y
+                return pd.DataFrame(val, columns=["frame_num", "x", "y"]).copy()
         # Fallback to filtering if for some reason not in index
         if not _TRAJ_DF.empty:
             traj = _TRAJ_DF[_TRAJ_DF['fid'] == fid].copy()
