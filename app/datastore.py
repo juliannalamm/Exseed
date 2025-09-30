@@ -68,7 +68,11 @@ AXIS_FEATURES = ["P_axis_byls", "E_axis_byls", "entropy"]
 # Felipe data uses 'fid' for track identifier
 BASE_COLUMNS = ["tsne_1", "tsne_2", "fid", "subtype_label"]
 try:
-    _df = pd.read_csv(_csv_uri())
+    # Use fast CSV engine if available
+    try:
+        _df = pd.read_csv(_csv_uri(), engine="pyarrow")
+    except Exception:
+        _df = pd.read_csv(_csv_uri())
     # Rename fid to track_id and fid to participant_id for compatibility
     if "fid" in _df.columns:
         _df["track_id"] = _df["fid"].astype(str)
@@ -96,7 +100,10 @@ def build_track_index():
     """
     try:
         # Load trajectory CSV (Felipe data)
-        traj_df = pd.read_csv(_trajectory_csv())
+        try:
+            traj_df = pd.read_csv(_trajectory_csv(), engine="pyarrow")
+        except Exception:
+            traj_df = pd.read_csv(_trajectory_csv())
         
         # Group by fid to compute centers and spans
         grouped = traj_df.groupby('fid').agg({
@@ -149,33 +156,47 @@ HALF_LOOKUP   = {(r.participant_id, r.track_id): float(r.half_span)
                  for r in TRACK_IDX.itertuples(index=False)}
 
 # ---------- Data access ----------
-# Load all trajectory data once
+# Load all trajectory data once and build an in-memory index for instant lookups
 try:
-    _TRAJ_DF = pd.read_csv(_trajectory_csv())
+    try:
+        _TRAJ_DF = pd.read_csv(_trajectory_csv(), engine="pyarrow")
+    except Exception:
+        _TRAJ_DF = pd.read_csv(_trajectory_csv())
+
+    # Build an index { fid -> DataFrame[['frame_num','x','y']] } at import time
+    _TRAJECTORY_INDEX = {}
+    if not _TRAJ_DF.empty:
+        # Normalize frame column once
+        if 'frame_number' in _TRAJ_DF.columns:
+            _TRAJ_DF = _TRAJ_DF.rename(columns={'frame_number': 'frame_num'})
+        # Group and sort once, store compact frames for each fid
+        for fid, grp in _TRAJ_DF.groupby('fid'):
+            frames = grp.sort_values('frame_num')[['frame_num', 'x', 'y']].reset_index(drop=True)
+            _TRAJECTORY_INDEX[fid] = frames
+    print(f">>> TRAJ INDEX READY: {len(_TRAJECTORY_INDEX)} tracks")
 except Exception as e:
     print(f">>> ERROR loading trajectory data: {e}")
-    _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_number", "x", "y"])
+    _TRAJ_DF = pd.DataFrame(columns=["fid", "frame_num", "x", "y"])
+    _TRAJECTORY_INDEX = {}
 
 def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
-    """Fetch a single track's frames from the trajectory CSV."""
+    """Fetch a single track's frames using prebuilt index for O(1) lookup."""
     try:
         # Convert track_id to fid (Felipe data uses fid)
-        fid = int(track_id) if track_id.isdigit() else track_id
-        
-        # Filter for this fid
-        traj = _TRAJ_DF[_TRAJ_DF['fid'] == fid].copy()
-        
-        if traj.empty:
-            return pd.DataFrame(columns=["frame_num", "x", "y"])
-        
-        # Rename frame_number to frame_num for compatibility
-        if 'frame_number' in traj.columns:
-            traj = traj.rename(columns={'frame_number': 'frame_num'})
-        
-        # Sort and select relevant columns
-        traj = traj.sort_values('frame_num')[['frame_num', 'x', 'y']]
-        
-        return traj.reset_index(drop=True)
+        fid = int(track_id) if isinstance(track_id, str) and track_id.isdigit() else track_id
+        # Direct index lookup first
+        if fid in _TRAJECTORY_INDEX:
+            return _TRAJECTORY_INDEX[fid].copy()
+        # Fallback to filtering if for some reason not in index
+        if not _TRAJ_DF.empty:
+            traj = _TRAJ_DF[_TRAJ_DF['fid'] == fid].copy()
+            if traj.empty:
+                return pd.DataFrame(columns=["frame_num", "x", "y"])
+            if 'frame_number' in traj.columns:
+                traj = traj.rename(columns={'frame_number': 'frame_num'})
+            traj = traj.sort_values('frame_num')[['frame_num', 'x', 'y']]
+            return traj.reset_index(drop=True)
+        return pd.DataFrame(columns=["frame_num", "x", "y"])
     except Exception as e:
         print(f"Error reading trajectory data for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])
