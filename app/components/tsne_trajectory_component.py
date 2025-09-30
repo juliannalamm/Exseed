@@ -48,9 +48,18 @@ def trajectory_fig_centered(traj, center, color="#636EFA"):
         fig.add_scatter(x=x0, y=y0, mode="lines+markers",
                         marker=dict(size=4, color=color), line=dict(width=2, color=color))
     else:
-        fig.add_annotation(text="Loading trajectories...",
-                           showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5,
-                           font=dict(color="white", size=14))
+        fig.add_annotation(
+            text="Preparing trajectories (first load ~20s)...",
+            showarrow=False,
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0.5,
+            font=dict(color="white", size=16, family="Arial, sans-serif"),
+            bgcolor="rgba(0,0,0,0.6)",
+            bordercolor="rgba(0,0,0,0)",
+            borderpad=8,
+        )
 
     # fixed compare mode
     R = VIEW_HALF_FIXED
