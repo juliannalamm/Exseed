@@ -1,0 +1,34 @@
+{
+  "archetypes": {
+    "A": {
+      "participant_id": "b7f96273",
+      "title": "Clean Progressive High P, Low E",
+      "description": "Representative participant with high progressivity and low erraticity"
+    }
+  },
+  "radar_order": [
+    "progressive",
+    "rapid_progressive",
+    "nonprogressive",
+    "immotile",
+    "erratic"
+  ],
+  "casa_columns": [
+    "CASA_ALH_mean",
+    "CASA_BCF_mean",
+    "CASA_LIN_mean",
+    "CASA_MAD_mean",
+    "CASA_STR_mean",
+    "CASA_VAP_mean",
+    "CASA_VCL_mean",
+    "CASA_VSL_mean",
+    "CASA_WOB_mean"
+  ],
+  "plot_defaults": {
+    "n_tracks_bottom": 120,
+    "mark_endpoints": false,
+    "invert_y": true,
+    "rng_seed": 42
+  },
+  "note": "Filtered dataset containing only participant b7f96273"
+}

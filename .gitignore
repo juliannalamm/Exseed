@@ -2,6 +2,9 @@
 combined_views_tracks/
 .DS_Store
 
+# Exported data for Dash app (regenerate from notebooks)
+notebooks/dash_data/
+
 # Python
 __pycache__/
 *.py[cod]
