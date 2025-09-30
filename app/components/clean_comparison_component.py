@@ -161,7 +161,7 @@ def create_cluster_distribution(tracks_df, title="Cluster Distribution"):
     return fig
 
 
-def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_display=120):
+def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_display=120, animate=False):
     """Create clean trajectory animation with cluster colors, no grid."""
     
     # Handle different column names (Felipe uses 'fid', participants use 'track_id')
@@ -221,22 +221,22 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
             hoverinfo='skip'
         ))
     
-    # Create animation frames
-    frames = []
-    for frame_idx in range(max_frame):
-        frame_data = []
-        for tid, traj in trajectories.items():
-            end_idx = min(frame_idx + 1, len(traj['x']))
-            frame_data.append(go.Scatter(
-                x=traj['x'][:end_idx],
-                y=traj['y'][:end_idx],
-                mode='lines',
-                line=dict(width=1.2, color=traj['color']),
-                opacity=0.7,
-            ))
-        frames.append(go.Frame(data=frame_data, name=str(frame_idx)))
-    
-    fig.frames = frames
+    # Create animation frames only when requested to keep first render light
+    if animate and max_frame > 0:
+        frames = []
+        for frame_idx in range(max_frame):
+            frame_data = []
+            for tid, traj in trajectories.items():
+                end_idx = min(frame_idx + 1, len(traj['x']))
+                frame_data.append(go.Scatter(
+                    x=traj['x'][:end_idx],
+                    y=traj['y'][:end_idx],
+                    mode='lines',
+                    line=dict(width=1.2, color=traj['color']),
+                    opacity=0.7,
+                ))
+            frames.append(go.Frame(data=frame_data, name=str(frame_idx)))
+        fig.frames = frames
     
     # Clean layout - NO GRID
     fig.update_layout(
@@ -263,7 +263,7 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
         updatemenus=[{
             'type': 'buttons',
             'showactive': False,
-            'buttons': [
+            'buttons': ([
                 {'label': '▶', 'method': 'animate',
                  'args': [None, {'frame': {'duration': 50, 'redraw': False},
                                 'fromcurrent': True, 'mode': 'immediate',
@@ -272,11 +272,11 @@ def create_clean_trajectories(frames_df, tracks_df, title="Trajectories", n_disp
                  'args': [[None], {'frame': {'duration': 0, 'redraw': False},
                                   'mode': 'immediate',
                                   'transition': {'duration': 0}}]},
-            ],
+            ] if animate else []),
             'x': 0.5, 'y': -0.05, 'xanchor': 'center',
             'font': dict(size=16, color='white'),
-            'bgcolor': 'rgba(99, 110, 250, 0.3)',
-            'bordercolor': 'rgba(99, 110, 250, 0.5)',
+            'bgcolor': 'rgba(99, 110, 250, 0.3)' if animate else 'rgba(0,0,0,0)',
+            'bordercolor': 'rgba(99, 110, 250, 0.5)' if animate else 'rgba(0,0,0,0)',
         }],
         autosize=False,  # Prevent auto-resizing
         uirevision='constant',  # Prevent re-initialization on updates
@@ -630,27 +630,35 @@ def get_cached_data():
             if loader is None:
                 raise Exception("Could not find dash_data in any expected location")
             
-            # Pre-render trajectory figures at startup
-            print("Pre-rendering trajectory figures...")
+            # Pre-render trajectory figures at startup with timing
+            print("Pre-rendering comparison trajectory figures...")
+            _t0_total = pd.Timestamp.now().timestamp()
             participant_id = 'b7f96273'
             participant_tracks = loader.get_patient_tracks(participant_id)
             participant_frames = loader.get_patient_frames(participant_id)
             
             # Pre-compute Felipe trajectories
+            _t0 = pd.Timestamp.now().timestamp()
             felipe_traj_fig = create_clean_trajectories(
                 felipe_traj,
                 felipe_fid,
                 "Sperm Trajectories (n=120)",
                 n_display=120
             )
+            _t1 = pd.Timestamp.now().timestamp()
+            print(f">>> COMPARISON PRE-RENDER: felipe_traj_fig took {_t1 - _t0:.2f}s")
             
             # Pre-compute participant trajectories
+            _t2 = pd.Timestamp.now().timestamp()
             participant_traj_fig = create_clean_trajectories(
                 participant_frames,
                 participant_tracks,
                 "Sperm Trajectories (n=120)",
                 n_display=120
             )
+            _t3 = pd.Timestamp.now().timestamp()
+            print(f">>> COMPARISON PRE-RENDER: participant_traj_fig took {_t3 - _t2:.2f}s")
+            print(f">>> COMPARISON PRE-RENDER TOTAL took {_t3 - _t0_total:.2f}s")
             
             _cached_data = {
                 'felipe_fid': felipe_fid,
