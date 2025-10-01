@@ -4,6 +4,7 @@ import tempfile
 import pandas as pd
 import plotly.express as px
 import subprocess
+import json
 import plotly.graph_objects as go
 from full_pipeline import (
     json_to_df,
@@ -73,77 +74,37 @@ if selected_participant:
     if os.path.exists(json_path) and os.path.exists(video_path):
         st.success(f"✅ Loaded: {selected_participant}")
         
-        # Auto-run analysis for selected participant
+        # Load pre-calculated data for selected participant
         # Extract actual participant ID from filename
         actual_participant_id = SAMPLE_PARTICIPANTS[selected_participant].replace('_tracks_with_mot_params.json', '')
         
         if 'participant_id' not in st.session_state or st.session_state['participant_id'] != actual_participant_id:
-            # Create progress container
-            progress_container = st.container()
+            # Load pre-calculated data
+            pregen_data_path = os.path.join(SAMPLE_DATA_DIR, "pregenerated", f"{actual_participant_id}_complete_data.json")
             
-            with progress_container:
-                st.info(f"🔄 Processing {selected_participant}...")
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+            if os.path.exists(pregen_data_path):
+                with open(pregen_data_path, 'r') as f:
+                    patient_data = json.load(f)
                 
-                # Step 1: Parse JSON
-                status_text.text("📊 Parsing data...")
-                progress_bar.progress(20)
-                track_df, frame_df = json_to_df(json_path, actual_participant_id)
-                
-                # Step 2: Predict subtypes
-                status_text.text("🤖 Running AI analysis...")
-                progress_bar.progress(60)
-                preds = predict_sperm_motility(track_df, model_path=MODEL_PATH, include_umap=False)
-                
-                # Step 3: Save results
-                status_text.text("💾 Saving results...")
-                progress_bar.progress(80)
-                
-                # Create output directory
-                out_dir = os.path.join(tempfile.gettempdir(), f"{actual_participant_id}_outputs")
-                os.makedirs(out_dir, exist_ok=True)
-                
-                # Save predictions
-                preds_csv = os.path.join(out_dir, f"{actual_participant_id}_predictions.csv")
-                preds.to_csv(preds_csv, index=False)
-                
-                # Check if pre-generated video exists
-                pregen_video_path = os.path.join(SAMPLE_DATA_DIR, f"{actual_participant_id}_overlay_h264.mp4")
-                
-                if os.path.exists(pregen_video_path):
-                    # Use pre-generated video for faster loading
-                    h264_path = pregen_video_path
-                    st.info("🚀 Using pre-generated video for faster loading")
-                else:
-                    # Generate video overlay (slower)
-                    with st.spinner("🎬 Generating video overlay..."):
-                        raw_overlay_path = os.path.join(out_dir, f"{actual_participant_id}_raw_overlay.mp4")
-                        h264_path = os.path.join(out_dir, f"{actual_participant_id}_overlay_h264.mp4")
-                        
-                        overlay_trajectories_on_video(
-                            frame_df=frame_df,
-                            track_df=preds,
-                            video_path=video_path,
-                            output_path=raw_overlay_path
-                        )
-                        convert_to_h264(raw_overlay_path, h264_path)
-                
-                # Final step
-                status_text.text("✅ Complete!")
-                progress_bar.progress(100)
+                # Convert back to DataFrames
+                preds = pd.DataFrame(patient_data['raw_data']['preds'])
+                track_df = pd.DataFrame(patient_data['raw_data']['track_df'])
+                frame_df = pd.DataFrame(patient_data['raw_data']['frame_df'])
                 
                 # Store in session state
                 st.session_state['preds'] = preds
                 st.session_state['frame_df'] = frame_df
-                st.session_state['h264_path'] = h264_path
-                st.session_state['preds_csv'] = preds_csv
+                st.session_state['h264_path'] = patient_data['video_path']
                 st.session_state['participant_id'] = actual_participant_id
+                st.session_state['patient_data'] = patient_data
+                st.session_state['preds_csv'] = None  # No CSV for pre-calculated data
                 
-                # Clear progress indicators
-                progress_container.empty()
-                
+                st.success(f"🚀 Loaded {selected_participant} data instantly!")
                 st.rerun()
+            else:
+                st.error(f"❌ Pre-calculated data not found for {selected_participant}")
+                st.info("💡 Run `python pregenerate_all_data.py` to create pre-calculated data")
+                st.stop()
     else:
         st.error(f"❌ Sample data not found for {selected_participant}")
         st.stop()
@@ -207,8 +168,10 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     preds = st.session_state['preds']
     frame_df = st.session_state['frame_df']
     h264_path = st.session_state['h264_path']
-    preds_csv = st.session_state['preds_csv']
     participant_id = st.session_state['participant_id']
+    
+    # Handle preds_csv (may not exist for pre-calculated data)
+    preds_csv = st.session_state.get('preds_csv', None)
     
     # Create side-by-side layout: Video + Patient Overview
     st.subheader("👤 Patient Sample Analysis")
@@ -716,7 +679,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     
     # Download results
     st.subheader("📥 Download Results")
-    if os.path.exists(preds_csv):
+    if preds_csv and os.path.exists(preds_csv):
         with open(preds_csv, 'r') as f:
             st.download_button(
                 label="📊 Download Predictions CSV",
@@ -725,5 +688,14 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                 mime="text/csv"
             )
 
+    elif preds_csv is None:
+        # For pre-calculated data, create CSV on demand
+        csv_data = preds.to_csv(index=False)
+        st.download_button(
+            label="📊 Download Predictions CSV",
+            data=csv_data,
+            file_name=f"{participant_id}_predictions.csv",
+            mime="text/csv"
+        )
     elif run_btn and (not json_file or not video_file):
         st.error("❌ Please upload both JSON and video files to run analysis.")
