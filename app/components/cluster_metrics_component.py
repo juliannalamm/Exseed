@@ -29,6 +29,19 @@ FEATURE_DEFINITIONS = {
     "WOB": "Wobble - smoothness of trajectory (VAP/VCL)"
 }
 
+# Units for each feature
+FEATURE_UNITS = {
+    "ALH": "μm",
+    "BCF": "Hz", 
+    "LIN": "%",
+    "MAD": "°",
+    "STR": "%",
+    "VAP": "μm/s",
+    "VCL": "μm/s", 
+    "VSL": "μm/s",
+    "WOB": "%"
+}
+
 # Color mapping for each motility type (matches t-SNE plot colors)
 SUBTYPE_COLORS = {
     "progressive": "#636EFA",      # blue (Plotly default color 0)
@@ -59,6 +72,7 @@ SUBTYPE_DESCRIPTIONS = {
 
 
 def _cluster_means(subtype: str) -> pd.DataFrame:
+    """Get mean values for a specific cluster subtype"""
     df = POINTS
     if df.empty or subtype is None or "subtype_label" not in df.columns:
         return pd.DataFrame({"Feature": KINEMATIC_FEATURES, "Mean": [0] * len(KINEMATIC_FEATURES)})
@@ -332,8 +346,10 @@ def register_cluster_metrics_callbacks(app):
         stats = _cluster_means(active_subtype)
         stats = _minmax(stats)
         
-        # Add feature definitions to hover text
+        # Add feature definitions, raw values, and units to hover text
         stats["Definition"] = stats["Feature"].map(FEATURE_DEFINITIONS)
+        stats["RawValue"] = stats["Mean"]  # Keep raw values for hover
+        stats["Units"] = stats["Feature"].map(FEATURE_UNITS)
         
         fig = px.bar(
             stats,
@@ -341,11 +357,12 @@ def register_cluster_metrics_callbacks(app):
             y="Norm",
             title=f"{active_subtype}: Movement Metric Means",
             color_discrete_sequence=[subtype_color],
-            custom_data=["Definition"]
+            custom_data=["Definition", "RawValue", "Units"]
         )
         fig.update_traces(
             hovertemplate="<b>%{x}</b><br>" +
-                         "Value: %{y:.3f}<br>" +
+                         "Normalized: %{y:.3f}<br>" +
+                         "Raw Value: %{customdata[1]:.2f} %{customdata[2]}<br>" +
                          "<i>%{customdata[0]}</i>" +
                          "<extra></extra>"
         )
@@ -359,7 +376,13 @@ def register_cluster_metrics_callbacks(app):
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="white"),
             xaxis=dict(showgrid=False, zeroline=False),
-            yaxis=dict(showgrid=False, zeroline=False, title="normalized value"),
+            yaxis=dict(
+                showgrid=False, 
+                zeroline=False, 
+                title="Normalized Value",
+                range=[0, 1],  # Fixed range from 0-1
+                fixedrange=True
+            ),
             title={
                 "text": f"{formatted_subtype}: Movement Metric Means",
                 "x": 0.5,
