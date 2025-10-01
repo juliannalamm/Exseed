@@ -290,6 +290,17 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                 """, unsafe_allow_html=True)
             
             
+            # Native info box with definitions below the cards
+            with st.expander("Subtype definitions", expanded=False):
+                st.markdown(
+                    """
+                    **Progressive**: Move fast and straight; most likely to reach the egg.  
+                    **Vigorous**: faster more whiplike movement; can be beneficial for changing directions to find the egg and penetrating egg wall.  
+                    **Nonprogressive**: Moving but not progressing forward; low fertilization potential.  
+                    **Immotile**: Not moving; unlikely to contribute to fertilization.
+                    """
+                )
+
         except Exception as e:
             st.warning(f"⚠️ Could not load patient overview: {str(e)}")
     
