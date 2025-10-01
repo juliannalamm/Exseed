@@ -469,7 +469,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         unsafe_allow_html=True
     )
     st.markdown(
-        "<div style=\"font-weight:600; font-size:1.4rem; line-height:1.4; margin: 4px 0 10px;\">What types of sperm make up your sample compared to a typical patient?</div>",
+        "<div style=\"font-weight:600; font-size:1.4rem; line-height:1.4; margin: 4px 0 10px;\">What types of sperm make up the sample compared to a typical patient?</div>",
         unsafe_allow_html=True
     )
     try:
