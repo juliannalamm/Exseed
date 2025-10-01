@@ -19,7 +19,7 @@ try:
     from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
     from components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
     from components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
-    from components.velocity_component import register_velocity_callbacks
+    from components.velocity_component import create_velocity_component, register_velocity_callbacks
 except ImportError:
     # For container environment
     from app.components.tsne_component import create_tsne_component
@@ -29,7 +29,7 @@ except ImportError:
     from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
     from app.components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
     from app.components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
-    from app.components.velocity_component import register_velocity_callbacks
+    from app.components.velocity_component import create_velocity_component, register_velocity_callbacks
 
 # ---------- App ----------
 app = dash.Dash(
@@ -125,6 +125,7 @@ app.layout = html.Div(
                         html.Div(
                             style={
                                 "width": "100%",
+                                "marginTop": "40px",
                             },
                             children=[
                                 create_cluster_metrics_component(),
@@ -180,17 +181,24 @@ app.layout = html.Div(
                                     },
                                     children=[
                                         html.Div("Sperm Trajectory", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
+                                        # Unified card container for both trajectory and velocity
                                         html.Div(
-                                            dcc.Graph(
-                                                id="pe-traj-view",
-                                                style={"height": "380px"},
-                                                config={"responsive": False},
-                                            ),
                                             style={
+                                                "backgroundColor": "rgba(26,26,26,0.5)",
                                                 "borderRadius": "12px",
                                                 "overflow": "hidden",
                                                 "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
-                                            }
+                                            },
+                                            children=[
+                                                # Trajectory graph
+                                                dcc.Graph(
+                                                    id="pe-traj-view",
+                                                    style={"height": "320px"},  # Reduced height to make room for velocity
+                                                    config={"responsive": False},
+                                                ),
+                                                # Add velocity component integrated at the bottom
+                                                create_velocity_component("pe-velocity-meters"),
+                                            ]
                                         ),
                                     ]
                                 ),

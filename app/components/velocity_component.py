@@ -1,6 +1,7 @@
 # Velocity meter component (capsule-style blocks)
 import dash
 from dash import html, Input, Output, callback_context
+import typing
 import numpy as np
 import sys
 import os
@@ -44,7 +45,7 @@ def _percentile_caps(values):
 P95_CAPS = _percentile_caps([m for m, _ in METRICS])
 
 
-def _capsule_row(metric_key: str, label_text: str, value: float | None) -> html.Div:
+def _capsule_row(metric_key: str, label_text: str, value: typing.Optional[float]) -> html.Div:
     """
     Render a single metric row with up to 10 filled capsules based on normalized value.
     More compact design for integrated display.
@@ -96,10 +97,10 @@ def _empty_rows():
     ]
 
 
-def create_velocity_component():
+def create_velocity_component(component_id="velocity-meters"):
     """Create a velocity component that integrates seamlessly within the trajectory card."""
     return html.Div(
-        id="velocity-card",
+        id=f"velocity-card-{component_id}",
         style={
             "padding": "12px 16px",
             "backgroundColor": "rgba(26,26,26,0.5)",  # Match card background exactly
@@ -111,22 +112,59 @@ def create_velocity_component():
                 "Velocity Metrics",
                 style={"fontWeight": "600", "fontSize": "12px", "color": "#e6eaf2", "marginBottom": "8px", "textAlign": "center"}
             ),
-            html.Div(id="velocity-meters", children=_empty_rows()),
+            html.Div(id=component_id, children=_empty_rows()),
             
         ]
     )
 
 
 def register_velocity_callbacks(app):
+    # Callback for t-SNE velocity component
     @app.callback(
-        Output("velocity-meters", "children"),
+        Output("tsne-velocity-meters", "children"),
         Input("tsne", "hoverData"),
         Input("tsne", "clickData"),
         prevent_initial_call=False,
     )
-    def update_velocity_rows(hoverData, clickData):
+    def update_tsne_velocity_rows(hoverData, clickData):
         ctx = callback_context
         ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("tsne.clickData")) else hoverData
+        if not ev or "points" not in ev:
+            return _empty_rows()
+
+        p = ev["points"][0]
+        customdata = p.get("customdata")
+        if customdata is None or len(customdata) < 2:
+            return _empty_rows()
+
+        track_id = str(customdata[0])
+        # POINTS uses track_id as string
+        row = POINTS[POINTS["track_id"].astype(str) == track_id]
+        if row.empty:
+            return _empty_rows()
+        r0 = row.iloc[0]
+
+        rows = []
+        for key, label in METRICS:
+            val = r0[key] if key in row.columns else None
+            try:
+                val = float(val) if val is not None else None
+            except Exception:
+                val = None
+            rows.append(_capsule_row(key, key if label is None else key, val))
+
+        return rows
+
+    # Callback for P/E axis velocity component
+    @app.callback(
+        Output("pe-velocity-meters", "children"),
+        Input("pe-axis", "hoverData"),
+        Input("pe-axis", "clickData"),
+        prevent_initial_call=False,
+    )
+    def update_pe_velocity_rows(hoverData, clickData):
+        ctx = callback_context
+        ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("pe-axis.clickData")) else hoverData
         if not ev or "points" not in ev:
             return _empty_rows()
 

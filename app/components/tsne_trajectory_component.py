@@ -123,7 +123,7 @@ def create_tsne_trajectory_component():
                         figure=get_default_trajectory()
                     ),
                     # Velocity component integrated at the bottom
-                    create_velocity_component(),
+                    create_velocity_component("tsne-velocity-meters"),
                 ]
             ),
         ]
