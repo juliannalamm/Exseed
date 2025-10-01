@@ -19,7 +19,8 @@ def create_header_component():
                                 style={"fontSize": "12px", "padding": "6px 12px", "background": "linear-gradient(45deg, #667eea 0%, #764ba2 100%)"}
                             ),
                             html.Span(
-                                "Motility Fingerprinting",
+                                "Motility Fingerprint
+                                ",
                                 style={"fontSize": "20px", "fontWeight": "600", "color": "white"}
                             ),
                         ],
