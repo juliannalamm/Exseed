@@ -62,8 +62,8 @@ def trajectory_fig_centered(traj, center, color="#636EFA"):
     fig.update_layout(
         margin=dict(l=10, r=10, t=40, b=10),
         uirevision="traj-static",
-        paper_bgcolor="#1a1a1a",  # Outer chart background
-        plot_bgcolor="#1a1a1a",  # Inner plot area background
+        paper_bgcolor="rgba(26,26,26,0.5)",  # Match card background
+        plot_bgcolor="rgba(26,26,26,0.5)",  # Match card background
         showlegend=False,
     )
     return fig
@@ -74,8 +74,8 @@ def get_default_trajectory():
         return go.Figure().update_layout(
             title="No data available",
             margin=dict(l=10, r=10, t=40, b=10),
-            paper_bgcolor="#1a1a1a",
-            plot_bgcolor="#1a1a1a",
+            paper_bgcolor="rgba(26,26,26,0.5)",
+            plot_bgcolor="rgba(26,26,26,0.5)",
             font=dict(color="white"),
         )
     
@@ -90,7 +90,13 @@ def get_default_trajectory():
     return trajectory_fig_centered(traj, center)
 
 def create_tsne_trajectory_component():
-    """Create the t-SNE trajectory viewer component (simple header, fixed FOV)."""
+    """Create the t-SNE trajectory viewer component with integrated velocity component."""
+    # Import velocity component here to avoid circular imports
+    try:
+        from .velocity_component import create_velocity_component
+    except ImportError:
+        from velocity_component import create_velocity_component
+    
     return html.Div(
         style={
             "display": "flex",
@@ -100,18 +106,25 @@ def create_tsne_trajectory_component():
         },
         children=[
             html.Div("Sperm Trajectory", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
+            # Unified card container for both trajectory and velocity
             html.Div(
-                dcc.Graph(
-                    id="tsne-traj-view",
-                    style={"height": "380px"},
-                    config={"responsive": False},
-                    figure=get_default_trajectory()
-                ),
                 style={
+                    "backgroundColor": "rgba(26,26,26,0.5)",
                     "borderRadius": "12px",
                     "overflow": "hidden",
                     "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)"
-                }
+                },
+                children=[
+                    # Trajectory graph (no separate card styling)
+                    dcc.Graph(
+                        id="tsne-traj-view",
+                        style={"height": "320px"},
+                        config={"responsive": False},
+                        figure=get_default_trajectory()
+                    ),
+                    # Velocity component integrated at the bottom
+                    create_velocity_component(),
+                ]
             ),
         ]
     )
