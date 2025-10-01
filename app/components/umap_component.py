@@ -28,10 +28,9 @@ def create_umap_figure():
                 y=POINTS.loc[mask, "umap_2"],
                 mode="markers",
                 marker=dict(size=4, opacity=0.75),
-                name=str(subtype),  # Legend label
+                name=str(subtype).replace('_', ' ').title(),  # Legend label
                 customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label"]].values,
-                hovertemplate="<b>Track:</b> %{customdata[0]}<br>" +
-                             "<b>Class:</b> %{customdata[2]}<br>"
+                hovertemplate="<b>Class:</b> %{customdata[2]}<br><extra></extra>"
             )
         )
     

@@ -147,12 +147,15 @@ app.layout = html.Div(
                             }
                         ),
                         html.P(
-                            "Our cluster-derived labels serve as a soft 'ground truth' that condenses multivariate CASA measurements into a single progressivity–erraticity score, allowing transitional motility behaviors to be represented and providing clinically interpretable readouts.",
+                            "Fertilization requires sperm to shift from straight, progressive swimming into a hyperactivated state vigorous and erratic enough to penetrate mucus and fertilize the egg, but not so chaotic that it swims in circles. Traditional CASA bins blur these differences. Here, we map sperm onto a continuous progressive-erratic axis derived from cluster labels and semi-supervised learning, exposing the key transition into hyperactivation while separating it from fully erratic, non-functional motion.",
                             style={
                                 "color": "#e0e0e0",
                                 "fontSize": "15px",
-                                "marginBottom": "20px",
-                                "lineHeight": "1.6"
+                                "marginBottom": "10px",
+                                "margin": "0 auto 10px auto",
+                                "lineHeight": "1.6",
+                                "maxWidth": "900px",
+                                "textAlign": "center"
                             }
                         ),
                     ]
@@ -160,11 +163,19 @@ app.layout = html.Div(
                 # Third row: P/E axis chart and trajectory chart side by side
                 html.Div(
                     style={
-                        "display": "grid",
-                        "gridTemplateColumns": "2fr 1fr",
-                        "gap": "20px",
-                        "alignItems": "center",
+                        "backgroundColor": "rgba(26,26,26,0.5)",
+                        "borderRadius": "12px",
+                        "padding": "20px",
+                        "border": "1px solid rgba(99,110,250,0.3)",
                     },
+                    children=[
+                        html.Div(
+                            style={
+                                "display": "grid",
+                                "gridTemplateColumns": "2fr 1fr",
+                                "gap": "20px",
+                                "alignItems": "center",
+                            },
                     children=[
                         html.Div([
                             html.Div(id="pe-axis-content", children=create_pe_axis_component())
@@ -204,6 +215,36 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
+                    ],
+                        ),
+                        # Definition section spanning full width
+                        html.Div(
+                            style={
+                                "backgroundColor": "rgba(99, 110, 250, 0.15)",
+                                "padding": "16px 20px",
+                                "borderRadius": "12px",
+                                "marginTop": "16px",
+                                "marginBottom": "16px",
+                                "border": "1px solid rgba(99, 110, 250, 0.3)",
+                                "boxShadow": "0 4px 8px rgba(99, 110, 250, 0.1)",
+                                "textAlign": "center",
+                                "width": "100%"
+                            },
+                            children=[
+                                html.P(
+                                    html.Span([
+                                        html.B("Cluster uncertainty"),
+                                        " measures how uncertain the classification is - higher values indicate sperm that could belong to multiple movement clusters, while lower values show clear, distinct movement patterns."
+                                    ]),
+                                    style={
+                                        "color": "#e0e0e0",
+                                        "margin": "0",
+                                        "fontSize": "14px",
+                                        "lineHeight": "1.6"
+                                    }
+                                )
+                            ]
+                        )
                     ],
                 ),
                 # Fourth row: Clean Side-by-side Comparison

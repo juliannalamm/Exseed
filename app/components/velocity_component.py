@@ -16,17 +16,14 @@ except ImportError:
 
 
 METRICS = [
-    ("VCL", "Curvilinear velocity"),
-    ("VSL", "Straight-line velocity"),
-    ("VAP", "Average path velocity"),
+    ("VCL", "Curvilinear velocity", "μm/s"),
+    ("VSL", "Straight-line velocity", "μm/s"),
+    ("VAP", "Average path velocity", "μm/s"),
 ]
 
 
 def _percentile_caps(values):
-    """
-    Compute robust max (p95) per metric for normalization to 10 capsules.
-    Returns a dict: metric -> p95 (fallback to finite max or 1.0).
-    """
+ 
     caps = {}
     for metric in values:
         if metric in POINTS.columns:
@@ -42,10 +39,10 @@ def _percentile_caps(values):
     return caps
 
 
-P95_CAPS = _percentile_caps([m for m, _ in METRICS])
+P95_CAPS = _percentile_caps([m for m, _, _ in METRICS])
 
 
-def _capsule_row(metric_key: str, label_text: str, value: typing.Optional[float]) -> html.Div:
+def _capsule_row(metric_key: str, label_text: str, value: typing.Optional[float], units: str = "") -> html.Div:
     """
     Render a single metric row with up to 10 filled capsules based on normalized value.
     More compact design for integrated display.
@@ -78,14 +75,14 @@ def _capsule_row(metric_key: str, label_text: str, value: typing.Optional[float]
             "marginBottom": "4px"
         },
         children=[
-            html.Div(f"{label_text}", style={"color": "#e6eaf2", "fontSize": "11px", "minWidth": "35px"}),
+            html.Div(f"{label_text}", style={"color": "#e6eaf2", "fontSize": "12px", "minWidth": "35px"}),
             html.Div(
                 style={"display": "flex", "alignItems": "center", "flex": "1"},
                 children=cells
             ),
             html.Div(
-                f"{0 if value is None or not np.isfinite(value) else round(float(value), 1)}",
-                style={"color": "#8b93a7", "fontSize": "10px", "textAlign": "right", "minWidth": "35px"}
+                f"{0 if value is None or not np.isfinite(value) else round(float(value), 1)} {units}",
+                style={"color": "#8b93a7", "fontSize": "12px", "textAlign": "right", "minWidth": "40px"}
             )
         ]
     )
@@ -93,7 +90,7 @@ def _capsule_row(metric_key: str, label_text: str, value: typing.Optional[float]
 
 def _empty_rows():
     return [
-        _capsule_row(key, label, None) for key, label in METRICS
+        _capsule_row(key, label, None, units) for key, label, units in METRICS
     ]
 
 
@@ -163,13 +160,13 @@ def register_velocity_callbacks(app):
         r0 = row.iloc[0]
 
         rows = []
-        for key, label in METRICS:
+        for key, label, units in METRICS:
             val = r0[key] if key in row.columns else None
             try:
                 val = float(val) if val is not None else None
             except Exception:
                 val = None
-            rows.append(_capsule_row(key, key if label is None else key, val))
+            rows.append(_capsule_row(key, label, val, units))
 
         return rows, rows
 

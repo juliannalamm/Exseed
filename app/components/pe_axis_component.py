@@ -32,17 +32,74 @@ def create_pe_axis_figure():
     for i, subtype in enumerate(unique_subtypes):
         mask = POINTS["subtype_label"] == subtype
         color = SUBTYPE_COLORS.get(subtype, "#636EFA")
+        
+        # Regular points (non-hyperactive)
+        regular_mask = mask & (POINTS["is_hyperactive_mouse"] == 0)
+        if regular_mask.any():
+            fig.add_trace(
+                go.Scattergl(
+                    x=POINTS.loc[regular_mask, "P_axis_byls"], 
+                    y=POINTS.loc[regular_mask, "E_axis_byls"],
+                    mode="markers",
+                    marker=dict(size=4, opacity=0.75, color=color),
+                    name=str(subtype).replace('_', ' ').title(),  # Legend label
+                    customdata=POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values,
+                    hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br><extra></extra>")
+            )
+        
+        # Hyperactive points with glow effect
+        hyperactive_mask = mask & (POINTS["is_hyperactive_mouse"] == 1)
+        if hyperactive_mask.any():
+            # Add glow layer (smaller, more radiant)
+            fig.add_trace(
+                go.Scattergl(
+                    x=POINTS.loc[hyperactive_mask, "P_axis_byls"], 
+                    y=POINTS.loc[hyperactive_mask, "E_axis_byls"],
+                    mode="markers",
+                    marker=dict(
+                        size=6,  # Smaller size
+                        opacity=0.4,  # More opaque for radiance
+                        color="#fff8dc",  # Softer, more radiant golden color
+                        line=dict(width=0)
+                    ),
+                    name="",  # No legend entry for glow
+                    showlegend=False,
+                    hoverinfo="skip"  # Skip hover for glow layer
+                )
+            )
+            # Add main hyperactive points (keep original cluster colors)
+            fig.add_trace(
+                go.Scattergl(
+                    x=POINTS.loc[hyperactive_mask, "P_axis_byls"], 
+                    y=POINTS.loc[hyperactive_mask, "E_axis_byls"],
+                    mode="markers",
+                    marker=dict(
+                        size=4, 
+                        opacity=0.9,
+                        color=color,  # Keep original cluster color
+                        line=dict(width=1, color="#ffd700")  # Thinner golden border for hyperactive
+                    ),
+                    name="",  # No legend entry for individual hyperactive traces
+                    showlegend=False,
+                    customdata=POINTS.loc[hyperactive_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values,
+                    hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br><b>Hyperactive:</b> Yes<br><extra></extra>")
+            )
+    
+    # Add a single "Hyperactive" legend entry if there are any hyperactive points
+    if (POINTS["is_hyperactive_mouse"] == 1).any():
         fig.add_trace(
             go.Scattergl(
-                x=POINTS.loc[mask, "P_axis_byls"], 
-                y=POINTS.loc[mask, "E_axis_byls"],
+                x=[None], y=[None],  # Invisible trace
                 mode="markers",
-                marker=dict(size=4, opacity=0.75, color=color),
-                name=str(subtype),  # Legend label
-                customdata=POINTS.loc[mask, ["track_id","participant_id","subtype_label","entropy"]].values,
-                hovertemplate="<b>Track:</b> %{customdata[0]}<br>" +
-                             "<b>Class:</b> %{customdata[2]}<br>" +
-                             "<b>Entropy:</b> %{customdata[3]:.3f}<br>")
+                marker=dict(
+                    size=4,
+                    color="#636EFA",  # Use a default color for the legend
+                    line=dict(width=1, color="#ffd700")  # Thinner golden border
+                ),
+                name="Hyperactive",
+                showlegend=True,
+                hoverinfo="skip"
+            )
         )
     
     fig.update_layout(
@@ -77,10 +134,10 @@ def create_pe_axis_component():
     """Create the P/E axis component with graph"""
     return html.Div([
         html.Div([
-            html.Div("Progressivity vs Erraticity", 
-                    style={"color": "white", "marginBottom": "4px", "fontSize": "14px", "fontWeight": "600", "textAlign": "center"}),
-            html.Div("Explore the relationship between forward progression and movement irregularity", 
-                   style={"color": "#cccccc", "marginBottom": "16px", "fontSize": "12px", "textAlign": "center"}),
+            html.Div("Sperm Motility Plotted by Progressive vs Erratic Movement Type", 
+                    style={"color": "white", "marginBottom": "4px", "fontSize": "20px", "fontWeight": "600", "textAlign": "center"}),
+            html.Div("This chart maps sperm along a continuous progressivity–erraticity spectrum, highlighting subtle shifts into hyperactivated movement—the vigorous swimming style needed to penetrate the egg.", 
+                   style={"color": "#cccccc", "marginBottom": "8px", "fontSize": "14px", "textAlign": "center", "maxWidth": "600px", "margin": "0 auto 8px auto"}),
         ]),
         html.Div(
             dcc.Graph(

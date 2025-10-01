@@ -75,7 +75,7 @@ KINEMATIC_FEATURES = ["ALH", "BCF", "LIN", "MAD", "STR", "VAP", "VCL", "VSL", "W
 # Additional axis features for P/E plot
 AXIS_FEATURES = ["P_axis_byls", "E_axis_byls", "entropy"]
 # Felipe data uses 'fid' for track identifier
-BASE_COLUMNS = ["tsne_1", "tsne_2", "fid", "subtype_label"]
+BASE_COLUMNS = ["tsne_1", "tsne_2", "fid", "subtype_label", "is_hyperactive_mouse"]
 try:
     # Prefer Parquet if available for faster startup
     if _points_parquet().exists():
