@@ -78,12 +78,27 @@ if selected_participant:
         actual_participant_id = SAMPLE_PARTICIPANTS[selected_participant].replace('_tracks_with_mot_params.json', '')
         
         if 'participant_id' not in st.session_state or st.session_state['participant_id'] != actual_participant_id:
-            with st.spinner(f"Processing {selected_participant}..."):
-                # Process the data
+            # Create progress container
+            progress_container = st.container()
+            
+            with progress_container:
+                st.info(f"🔄 Processing {selected_participant}...")
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Step 1: Parse JSON
+                status_text.text("📊 Parsing data...")
+                progress_bar.progress(20)
                 track_df, frame_df = json_to_df(json_path, actual_participant_id)
                 
-                # Predict subtypes (no UMAP)
+                # Step 2: Predict subtypes
+                status_text.text("🤖 Running AI analysis...")
+                progress_bar.progress(60)
                 preds = predict_sperm_motility(track_df, model_path=MODEL_PATH, include_umap=False)
+                
+                # Step 3: Save results
+                status_text.text("💾 Saving results...")
+                progress_bar.progress(80)
                 
                 # Create output directory
                 out_dir = os.path.join(tempfile.gettempdir(), f"{actual_participant_id}_outputs")
@@ -93,17 +108,30 @@ if selected_participant:
                 preds_csv = os.path.join(out_dir, f"{actual_participant_id}_predictions.csv")
                 preds.to_csv(preds_csv, index=False)
                 
-                # Overlay trajectories on video
-                raw_overlay_path = os.path.join(out_dir, f"{actual_participant_id}_raw_overlay.mp4")
-                h264_path = os.path.join(out_dir, f"{actual_participant_id}_overlay_h264.mp4")
+                # Check if pre-generated video exists
+                pregen_video_path = os.path.join(SAMPLE_DATA_DIR, f"{actual_participant_id}_overlay_h264.mp4")
                 
-                overlay_trajectories_on_video(
-                    frame_df=frame_df,
-                    track_df=preds,
-                    video_path=video_path,
-                    output_path=raw_overlay_path
-                )
-                convert_to_h264(raw_overlay_path, h264_path)
+                if os.path.exists(pregen_video_path):
+                    # Use pre-generated video for faster loading
+                    h264_path = pregen_video_path
+                    st.info("🚀 Using pre-generated video for faster loading")
+                else:
+                    # Generate video overlay (slower)
+                    with st.spinner("🎬 Generating video overlay..."):
+                        raw_overlay_path = os.path.join(out_dir, f"{actual_participant_id}_raw_overlay.mp4")
+                        h264_path = os.path.join(out_dir, f"{actual_participant_id}_overlay_h264.mp4")
+                        
+                        overlay_trajectories_on_video(
+                            frame_df=frame_df,
+                            track_df=preds,
+                            video_path=video_path,
+                            output_path=raw_overlay_path
+                        )
+                        convert_to_h264(raw_overlay_path, h264_path)
+                
+                # Final step
+                status_text.text("✅ Complete!")
+                progress_bar.progress(100)
                 
                 # Store in session state
                 st.session_state['preds'] = preds
@@ -111,6 +139,9 @@ if selected_participant:
                 st.session_state['h264_path'] = h264_path
                 st.session_state['preds_csv'] = preds_csv
                 st.session_state['participant_id'] = actual_participant_id
+                
+                # Clear progress indicators
+                progress_container.empty()
                 
                 st.rerun()
     else:
