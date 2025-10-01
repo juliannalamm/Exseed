@@ -71,13 +71,49 @@ def _cluster_means(subtype: str) -> pd.DataFrame:
 
 
 def _minmax(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize using global min/max values from all data, not per-cluster min/max"""
     if df.empty:
         return df
-    mn = float(df["Mean"].min())
-    mx = float(df["Mean"].max())
-    rng = (mx - mn) or 1.0
+    
+    # Get global min/max from all POINTS data for proper normalization
+    global_df = POINTS
+    if global_df.empty or "subtype_label" not in global_df.columns:
+        # Fallback to per-cluster normalization if no global data
+        mn = float(df["Mean"].min())
+        mx = float(df["Mean"].max())
+        rng = (mx - mn) or 1.0
+        out = df.copy()
+        out["Norm"] = (out["Mean"] - mn) / rng
+        return out
+    
+    # Calculate global min/max for each feature across all clusters
+    feature_cols = [col for col in KINEMATIC_FEATURES if col in global_df.columns]
+    if not feature_cols:
+        # Fallback to per-cluster normalization
+        mn = float(df["Mean"].min())
+        mx = float(df["Mean"].max())
+        rng = (mx - mn) or 1.0
+        out = df.copy()
+        out["Norm"] = (out["Mean"] - mn) / rng
+        return out
+    
+    global_min = global_df[feature_cols].min()
+    global_max = global_df[feature_cols].max()
+    
     out = df.copy()
-    out["Norm"] = (out["Mean"] - mn) / rng
+    out["Norm"] = 0.0  # Initialize
+    
+    # Normalize each feature using global min/max
+    for _, row in df.iterrows():
+        feature = row["Feature"]
+        if feature in global_min.index and feature in global_max.index:
+            global_min_val = global_min[feature]
+            global_max_val = global_max[feature]
+            if global_max_val != global_min_val:
+                out.loc[out["Feature"] == feature, "Norm"] = (row["Mean"] - global_min_val) / (global_max_val - global_min_val)
+            else:
+                out.loc[out["Feature"] == feature, "Norm"] = 0.5  # Midpoint if no range
+    
     return out
 
 
