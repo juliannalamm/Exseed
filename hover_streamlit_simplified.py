@@ -234,10 +234,10 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
             }
 
             subtype_info = {
-                'progressive': {'color': '#636EFA', 'icon_svg': lucide_svg(LUCIDE_PATHS['fast-forward'], '#636EFA', 24), 'name': 'Progressive'},
-                'vigorous': {'color': '#EF553B', 'icon_svg': lucide_svg(LUCIDE_PATHS['zap'], '#EF553B', 24), 'name': 'Vigorous'},
-                'nonprogressive': {'color': '#00CC96', 'icon_svg': lucide_svg(LUCIDE_PATHS['turtle'], '#00CC96', 24), 'name': 'Nonprogressive'},
-                'immotile': {'color': '#FFA15A', 'icon_svg': lucide_svg(LUCIDE_PATHS['pause-circle'], '#FFA15A', 24), 'name': 'Immotile'}
+                'progressive': {'color': '#636EFA', 'icon_svg': lucide_svg(LUCIDE_PATHS['fast-forward'], '#636EFA', 28), 'name': 'Progressive'},
+                'vigorous': {'color': '#EF553B', 'icon_svg': lucide_svg(LUCIDE_PATHS['zap'], '#EF553B', 28), 'name': 'Vigorous'},
+                'nonprogressive': {'color': '#00CC96', 'icon_svg': lucide_svg(LUCIDE_PATHS['turtle'], '#00CC96', 28), 'name': 'Nonprogressive'},
+                'immotile': {'color': '#FFA15A', 'icon_svg': lucide_svg(LUCIDE_PATHS['pause-circle'], '#FFA15A', 28), 'name': 'Immotile'}
             }
             
             # Create overview cards (stacked vertically)
@@ -353,15 +353,15 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         if good_differences >= 3:
             overall_status = "Excellent - Above average motility profile"
             status_color = "#2ca02c"
-            status_icon_svg = lucide_svg(LUCIDE_PATHS['smile'], status_color, 20)
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['smile'], status_color, 28)
         elif good_differences >= 2:
             overall_status = "Good - Mixed motility profile"
             status_color = "#ff7f0e"
-            status_icon_svg = lucide_svg(LUCIDE_PATHS['meh'], status_color, 20)
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['meh'], status_color, 28)
         else:
             overall_status = "Below Average - Lower motility profile"
             status_color = "#d62728"
-            status_icon_svg = lucide_svg(LUCIDE_PATHS['frown'], status_color, 20)
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['frown'], status_color, 28)
         
         st.markdown(f"""
         <div style="
@@ -446,248 +446,137 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     except Exception as e:
         st.warning(f"⚠️ Could not load track analysis and assessment: {str(e)}")
     
-    # Percent Breakdown of Motility Types
+    # Percent Breakdown of Motility Types (overall radar + stacked bar)
     st.markdown("---")
     st.subheader("📊 Percent Breakdown of Motility Types")
     try:
-        # Calculate median metrics
+        # Typical percentages (normalized)
         median_metrics, metrics_df = calculate_median_participant_metrics()
-        
-        # Fix: Calculate percentages from median counts to ensure they add up to 100%
-        # Get the median total tracks
-        median_total_tracks = median_metrics['total_tracks']
-        
-        # Calculate what the median counts would be for each subtype
-        # We need to estimate the median counts, not use the median percentages
-        # For now, let's use the median percentages but normalize them to sum to 100%
-        subtype_percentages = {
+        typical_pct = {
             'progressive': median_metrics['progressive'],
-            'vigorous': median_metrics['vigorous'], 
+            'vigorous': median_metrics['vigorous'],
             'immotile': median_metrics['immotile'],
             'nonprogressive': median_metrics['nonprogressive']
         }
-        
-        # Normalize to ensure they sum to 100%
-        total_percentage = sum(subtype_percentages.values())
-        if total_percentage > 0:
-            for subtype in subtype_percentages:
-                subtype_percentages[subtype] = (subtype_percentages[subtype] / total_percentage) * 100
-        
-        # Calculate current participant metrics
+        total_pct = sum(typical_pct.values())
+        if total_pct > 0:
+            for k in typical_pct:
+                typical_pct[k] = (typical_pct[k] / total_pct) * 100
+
+        # Current percentages
         current_total_tracks = len(preds)
-        current_subtype_counts = preds['subtype_label'].value_counts()
-        current_percentages = {}
-        
-        for subtype in ['progressive', 'vigorous', 'immotile', 'nonprogressive']:
-            count = current_subtype_counts.get(subtype, 0)
-            percentage = (count / current_total_tracks) * 100
-            current_percentages[subtype] = percentage
-        
-        # Create stacked horizontal bar chart
-        fig = go.Figure()
-        
-        # Map metric names to colors (matching Dash component colors)
-        metric_colors = {
-            'progressive': '#636EFA',      # blue
-            'vigorous': '#EF553B',         # red
-            'nonprogressive': '#00CC96',   # teal/green
-            'immotile': '#FFA15A'          # orange
-        }
-        
-        # Add bars for current participant (stacked)
-        metrics_order = ['progressive', 'vigorous', 'nonprogressive', 'immotile']
+        current_counts = preds['subtype_label'].value_counts()
+        current_pct = {}
+        for k in ['progressive', 'vigorous', 'immotile', 'nonprogressive']:
+            current_pct[k] = (current_counts.get(k, 0) / current_total_tracks) * 100 if current_total_tracks else 0
+
+        # Radar (overall)
+        metrics_order = ['Progressive', 'Vigorous', 'Nonprogressive', 'Immotile']
+        order_keys = ['progressive', 'vigorous', 'nonprogressive', 'immotile']
+        r_curr = [current_pct[k] for k in order_keys]
+        r_typ = [typical_pct[k] for k in order_keys]
+        radar = go.Figure()
+        radar.add_trace(go.Scatterpolar(r=r_typ + [r_typ[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Typical Patient', fillcolor='rgba(150,150,150,0.15)', line=dict(color='rgba(150,150,150,0.6)', width=2, dash='dash'), hovertemplate='<b>Typical</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
+        radar.add_trace(go.Scatterpolar(r=r_curr + [r_curr[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Current Patient', fillcolor='rgba(99,110,250,0.3)', line=dict(color='#636EFA', width=2.5), hovertemplate='<b>Current</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
+        radar.update_layout(polar=dict(radialaxis=dict(range=[0, 100], showgrid=False, tickfont=dict(size=10)), angularaxis=dict(tickfont=dict(size=11))), title="Motility Type Breakdown (Percent)", showlegend=True, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), margin=dict(l=20, r=20, t=60, b=20), height=360)
+        st.plotly_chart(radar, use_container_width=True, key="motility_radar_overall")
+
+        # Stacked horizontal bar (overall)
+        metric_colors = {'progressive': '#636EFA', 'vigorous': '#EF553B', 'nonprogressive': '#00CC96', 'immotile': '#FFA15A'}
+        bar = go.Figure()
+        metrics_order_l = ['progressive', 'vigorous', 'nonprogressive', 'immotile']
         metric_names = ['Progressive', 'Vigorous', 'Nonprogressive', 'Immotile']
-        
-        for i, (metric, name) in enumerate(zip(metrics_order, metric_names)):
-            fig.add_trace(go.Bar(
-                y=['Your Patient'],
-                x=[current_percentages[metric]],
-                orientation='h',
-                name=name,
-                marker_color=metric_colors[metric],
-                text=f'{current_percentages[metric]:.1f}%',
-                textposition='inside',
-                textfont=dict(color='white', size=10),
-                showlegend=True
-            ))
-        
-        # Add bars for median values (separate row)
-        for i, (metric, name) in enumerate(zip(metrics_order, metric_names)):
-            fig.add_trace(go.Bar(
-                y=['Typical Patient'],
-                x=[subtype_percentages[metric]],
-                orientation='h',
-                name=name,
-                marker_color=metric_colors[metric],
-                text=f'{subtype_percentages[metric]:.1f}%',
-                textposition='inside',
-                textfont=dict(color='white', size=10),
-                showlegend=False,
-                opacity=0.7
-            ))
-        
-        fig.update_layout(
-            title="% Breakdown of Motility Types vs. Typical (median)",
-            xaxis_title="Percentage (%)",
-            barmode='stack',
-            height=300,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            margin=dict(l=20, r=20, t=80, b=20)
-        )
-        
-        st.plotly_chart(fig, use_container_width=True, key="stacked_bar")
-        
+        for metric, name in zip(metrics_order_l, metric_names):
+            bar.add_trace(go.Bar(y=['Your Patient'], x=[current_pct[metric]], orientation='h', name=name, marker_color=metric_colors[metric], text=f"{current_pct[metric]:.1f}%", textposition='inside', textfont=dict(color='white', size=10), showlegend=True))
+        for metric, name in zip(metrics_order_l, metric_names):
+            bar.add_trace(go.Bar(y=['Typical Patient'], x=[typical_pct[metric]], orientation='h', name=name, marker_color=metric_colors[metric], text=f"{typical_pct[metric]:.1f}%", textposition='inside', textfont=dict(color='white', size=10), showlegend=False, opacity=0.7))
+        bar.update_layout(title="% Breakdown of Motility Types vs. Typical (median)", xaxis_title="Percentage (%)", barmode='stack', height=300, showlegend=True, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), margin=dict(l=20, r=20, t=80, b=20), xaxis=dict(range=[0,100]))
+        st.plotly_chart(bar, use_container_width=True, key="stacked_bar_overall")
     except Exception as e:
         st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
     
-    # Feature Profile - Radar Charts
-    st.subheader("📈 Feature Profile: Current vs Typical Patient")
+    # Feature Profile - Bar Charts (with subtype tabs)
+    st.subheader("📈 Feature Values: Current vs Typical (Bar)")
     try:
-        # Calculate typical patient feature profile (overall average)
         typical_profile, features_df = calculate_typical_patient_feature_profile()
-        
-        # Calculate current participant's overall average feature values (across all tracks)
-        all_features = ['ALH', 'BCF', 'LIN', 'VCL', 'VSL', 'WOB', 'MAD', 'STR', 'VAP']
-        current_values = {}
-        typical_values = {}
-        
-        for feature in all_features:
-            if feature in preds.columns:
-                current_values[feature] = preds[feature].mean()
-            else:
-                current_values[feature] = 0
-            
-            # Get typical value (overall average across all clusters)
-            if feature in features_df.columns:
-                typical_values[feature] = features_df[feature].mean()
-            else:
-                typical_values[feature] = 0
-        
-        # Create single combined radar chart with all features
-        all_features = ['VCL', 'VSL', 'VAP', 'LIN', 'STR', 'WOB', 'ALH', 'BCF', 'MAD']
-        current_all = []
-        typical_all = []
-        
-        # Normalize all features to 0-1 scale using the same method as comparison component
-        for feature in all_features:
-            current_val = current_values[feature]
-            typical_val = typical_values[feature]
-            
-            # Apply same normalization as comparison component
-            if feature in ['VCL', 'VAP', 'VSL']:  # Velocity metrics
-                current_normalized = min(current_val / 200.0, 1.0)  # Assume max ~200
-                typical_normalized = min(typical_val / 200.0, 1.0)
-            elif feature == 'ALH':
-                current_normalized = min(current_val / 10.0, 1.0)  # Assume max ~10
-                typical_normalized = min(typical_val / 10.0, 1.0)
-            elif feature == 'BCF':
-                current_normalized = min(current_val / 20.0, 1.0)  # Assume max ~20
-                typical_normalized = min(typical_val / 20.0, 1.0)
-            elif feature == 'MAD':
-                current_normalized = min(current_val / 5.0, 1.0)  # Assume max ~5
-                typical_normalized = min(typical_val / 5.0, 1.0)
-            else:  # LIN, STR, WOB are already 0-1
-                current_normalized = min(current_val, 1.0)
-                typical_normalized = min(typical_val, 1.0)
-            
-            current_all.append(current_normalized)
-            typical_all.append(typical_normalized)
-        
-        # Create single radar chart
-        fig = go.Figure()
-        
-        # Add typical patient (grey, behind)
-        fig.add_trace(go.Scatterpolar(
-            r=typical_all + [typical_all[0]],  # Close the loop
-            theta=all_features + [all_features[0]],
-            fill='toself',
-            name='Typical Patient',
-            fillcolor='rgba(150, 150, 150, 0.15)',
-            line=dict(color='rgba(150, 150, 150, 0.6)', width=2, dash='dash'),
-            hovertemplate='<b>Typical Patient</b><br>%{theta}: %{r:.1%}<extra></extra>',
-        ))
-        
-        # Add current patient (blue, on top)
-        fig.add_trace(go.Scatterpolar(
-            r=current_all + [current_all[0]],  # Close the loop
-            theta=all_features + [all_features[0]],
-            fill='toself',
-            name='Current Patient',
-            fillcolor='rgba(99, 110, 250, 0.3)',
-            line=dict(color='#636EFA', width=2.5),
-            hovertemplate='<b>Current Patient</b><br>%{theta}: %{r:.1%}<extra></extra>',
-        ))
-        
-        # Determine range
-        max_val = max(max(current_all), max(typical_all)) if current_all and typical_all else 1.0
-        range_max = max(1.0, max_val * 1.1)
-        
-        fig.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=False,  # Hide radial axis completely
-                    range=[0, range_max],
-                ),
-                angularaxis=dict(
-                    tickfont=dict(size=11),
-                ),
-            ),
-            title="Overall Feature Profile Comparison",
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            ),
-            height=500,
-            margin=dict(l=50, r=50, t=80, b=50)
-        )
-        
-        # Radar chart with hoverable info
-        col1, col2 = st.columns([1, 20])
-        with col1:
-            st.markdown("📊")
-        with col2:
-            st.plotly_chart(fig, use_container_width=True, key="combined_radar")
-        
-        # Hoverable info about radar chart
-        with st.expander("ℹ️ How to interpret this radar chart", expanded=False):
-            st.markdown("""
-            **📊 Radar Chart Interpretation:**
-            - **Percentages (0-100%)** represent normalized feature values for fair comparison
-            - **Velocity features** (VCL, VSL, VAP): Normalized by dividing by 200 μm/s
-            - **ALH**: Normalized by dividing by 10 μm  
-            - **BCF**: Normalized by dividing by 20 Hz
-            - **MAD**: Normalized by dividing by 5 μm
-            - **Linearity features** (LIN, STR, WOB): Already 0-1 scale
-            - **Blue area**: Current patient's feature profile
-            - **Grey dashed area**: Typical patient's feature profile
-            """)
-        
-        # Show raw values in a table
-        with st.expander("📊 All Raw Feature Values", expanded=False):
-            comparison_data = []
-            for feature in all_features:
-                comparison_data.append({
-                    'Feature': feature,
-                    'Current Patient': f"{current_values[feature]:.3f}",
-                    'Typical Patient': f"{typical_values[feature]:.3f}",
-                    'Difference': f"{current_values[feature] - typical_values[feature]:+.3f}"
-                })
-            
-            comparison_df = pd.DataFrame(comparison_data)
-            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
-        
-        
+        all_features_for_means = ['ALH', 'BCF', 'LIN', 'VCL', 'VSL', 'WOB', 'STR', 'VAP']
+
+        # Provided typical feature values per subtype_label
+        TYPICAL_FEATURES_BY_SUBTYPE = {
+            'immotile':       {'ALH': 0.2, 'BCF': 12.1, 'LIN': 0.2, 'MAD': 43.2, 'STR': 0.7, 'VAP': 2.3,  'VCL': 8.2,  'VSL': 1.4,  'WOB': 0.3},
+            'nonprogressive': {'ALH': 0.8, 'BCF': 11.1, 'LIN': 0.3, 'MAD': 67.9, 'STR': 0.8, 'VAP': 11.1, 'VCL': 33.1, 'VSL': 8.9,  'WOB': 0.3},
+            'progressive':    {'ALH': 1.2, 'BCF': 12.8, 'LIN': 0.6, 'MAD': 65.4, 'STR': 1.1, 'VAP': 35.8, 'VCL': 63.8, 'VSL': 38.7, 'WOB': 0.6},
+            'vigorous':       {'ALH': 2.0, 'BCF': 11.3, 'LIN': 0.5, 'MAD': 74.7, 'STR': 1.2, 'VAP': 35.2, 'VCL': 92.4, 'VSL': 41.5, 'WOB': 0.4},
+        }
+
+        def compute_means(df_slice, typical_subtype_key: str | None):
+            current_values = {}
+            typical_values = {}
+            for feature in all_features_for_means:
+                current_values[feature] = df_slice[feature].mean() if feature in df_slice.columns and len(df_slice) else 0
+                if typical_subtype_key is None:
+                    # Overall typical = global mean
+                    typical_values[feature] = features_df[feature].mean() if feature in features_df.columns else 0
+                else:
+                    typical_values[feature] = TYPICAL_FEATURES_BY_SUBTYPE.get(typical_subtype_key, {}).get(feature, 0)
+            return current_values, typical_values
+
+        # Compute fixed y-axis ranges once from overall (no autoscale in tabs)
+        overall_current_values, overall_typical_values = compute_means(preds, None)
+        group1 = ['VCL', 'VSL', 'VAP', 'BCF']
+        group2 = ['STR', 'LIN', 'ALH', 'WOB']
+        ymax_a = max(max(overall_current_values.get(f,0), overall_typical_values.get(f,0)) for f in group1) if len(preds) else 1
+        ymax_b = max(max(overall_current_values.get(f,0), overall_typical_values.get(f,0)) for f in group2) if len(preds) else 1
+
+        # Tabs by subtype_label (requested)
+        tabs_feat = st.tabs(["All", "Progressive", "Vigorous", "Nonprogressive", "Immotile"]) 
+        subtype_filters = [None, 'progressive', 'vigorous', 'nonprogressive', 'immotile']
+        for t, subtype_key in zip(tabs_feat, subtype_filters):
+            with t:
+                df_slice = preds if subtype_key is None else preds[preds['subtype_label'] == subtype_key]
+                if len(df_slice) == 0:
+                    st.info("No tracks in this cluster for the selected patient.")
+                    continue
+                current_values, typical_values = compute_means(df_slice, subtype_key)
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    x_labels_a = group1
+                    current_vals_a = [current_values[f] for f in x_labels_a]
+                    typical_vals_a = [typical_values[f] for f in x_labels_a]
+                    bar_a = go.Figure()
+                    current_color = subtype_info[subtype_key]['color'] if subtype_key else '#636EFA'
+                    bar_a.add_trace(go.Bar(name='Current', x=x_labels_a, y=current_vals_a, marker_color=current_color))
+                    bar_a.add_trace(go.Bar(name='Typical', x=x_labels_a, y=typical_vals_a, marker_color='rgba(150,150,150,0.85)'))
+                    bar_a.update_layout(
+                        barmode='group',
+                        title='Velocity & Frequency Features' if subtype_key is None else f"Velocity & Frequency Features — {subtype_key.title()}",
+                        xaxis_title='Feature',
+                        yaxis_title='Value', yaxis=dict(range=[0, 110], showgrid=False), xaxis=dict(showgrid=False),
+                        showlegend=True,
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                        margin=dict(l=10, r=10, t=60, b=20),
+                        height=360
+                    )
+                    st.plotly_chart(bar_a, use_container_width=True, key=f'features_bar_a_{"all" if subtype_key is None else subtype_key}')
+                with col_b:
+                    x_labels_b = group2
+                    current_vals_b = [current_values[f] for f in x_labels_b]
+                    typical_vals_b = [typical_values[f] for f in x_labels_b]
+                    bar_b = go.Figure()
+                    current_color = subtype_info[subtype_key]['color'] if subtype_key else '#636EFA'
+                    bar_b.add_trace(go.Bar(name='Current', x=x_labels_b, y=current_vals_b, marker_color=current_color))
+                    bar_b.add_trace(go.Bar(name='Typical', x=x_labels_b, y=typical_vals_b, marker_color='rgba(150,150,150,0.85)'))
+                    bar_b.update_layout(
+                        barmode='group',
+                        title='Linearity & Amplitude Features' if subtype_key is None else f"Linearity & Amplitude Features — {subtype_key.title()}",
+                        xaxis_title='Feature',
+                        yaxis_title='Value', yaxis=dict(range=[0, 1], showgrid=False), xaxis=dict(showgrid=False),
+                        showlegend=True,
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                        margin=dict(l=10, r=10, t=60, b=20),
+                        height=360
+                    )
+                    st.plotly_chart(bar_b, use_container_width=True, key=f'features_bar_b_{"all" if subtype_key is None else subtype_key}')
     except Exception as e:
         st.warning(f"⚠️ Could not load feature comparison: {str(e)}")
     
