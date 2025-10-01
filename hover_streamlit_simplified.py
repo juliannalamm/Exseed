@@ -174,7 +174,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     preds_csv = st.session_state.get('preds_csv', None)
     
     # Create side-by-side layout: Video + Patient Overview
-    st.subheader("👤 Patient Sample Analysis")
+    st.subheader("👤 Patient Sample Analysis at a Glance")
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -230,7 +230,9 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                 'turtle': '<path d="m12 10 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a8 8 0 1 0-16 0v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3l2-4h4Z"/><path d="M4.82 7.9 8 10"/><path d="M15.18 7.9 12 10"/><path d="M16.93 10H20a2 2 0 0 1 0 4H2"/>',
                 'smile': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
                 'meh': '<circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
-                'frown': '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'
+                'frown': '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+                'microscope': '<path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/>',
+                'scan-heart': '<path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7.828 13.07A3 3 0 0 1 12 8.764a3 3 0 0 1 4.172 4.306l-3.447 3.62a1 1 0 0 1-1.449 0z"/>'
             }
 
             subtype_info = {
@@ -324,7 +326,15 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
             current_percentages[subtype] = percentage
         
         # Overall Assessment (full width above track analysis)
-        st.markdown("#### 🎯 Overall Assessment")
+        st.markdown(
+            f"""
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span>{lucide_svg(LUCIDE_PATHS['scan-heart'], '#111827', 28)}</span>
+                <span style="font-size:1.8rem; font-weight:600;">Overall Assessment</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         
         # Find dominant motility type
         dominant_type = max(current_percentages, key=current_percentages.get)
@@ -396,9 +406,10 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         </div>
         """, unsafe_allow_html=True)
         
+        # Spacer between Overall Assessment and Track Analysis (no markdown line)
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+
         # Track Analysis (full width below overall assessment)
-        st.markdown("---")
-        st.markdown("#### 📊 Track Analysis")
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -448,7 +459,19 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
     
     # Percent Breakdown of Motility Types (overall radar + stacked bar)
     st.markdown("---")
-    st.subheader("📊 Percent Breakdown of Motility Types")
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <span>{lucide_svg(LUCIDE_PATHS['microscope'], '#111827', 28)}</span>
+            <span style="font-size: 1.8rem; font-weight: 600;">Explore Detailed Insights</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<div style=\"font-weight:600; font-size:1.4rem; line-height:1.4; margin: 4px 0 10px;\">What types of sperm make up your sample compared to a typical patient?</div>",
+        unsafe_allow_html=True
+    )
     try:
         # Typical percentages (normalized)
         median_metrics, metrics_df = calculate_median_participant_metrics()
@@ -476,10 +499,21 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         r_curr = [current_pct[k] for k in order_keys]
         r_typ = [typical_pct[k] for k in order_keys]
         radar = go.Figure()
-        radar.add_trace(go.Scatterpolar(r=r_typ + [r_typ[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Typical Patient', fillcolor='rgba(150,150,150,0.15)', line=dict(color='rgba(150,150,150,0.6)', width=2, dash='dash'), hovertemplate='<b>Typical</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
-        radar.add_trace(go.Scatterpolar(r=r_curr + [r_curr[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Current Patient', fillcolor='rgba(99,110,250,0.3)', line=dict(color='#636EFA', width=2.5), hovertemplate='<b>Current</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
-        radar.update_layout(polar=dict(radialaxis=dict(range=[0, 100], showgrid=False, tickfont=dict(size=10)), angularaxis=dict(tickfont=dict(size=11))), title="Motility Type Breakdown (Percent)", showlegend=True, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), margin=dict(l=20, r=20, t=60, b=20), height=360)
-        st.plotly_chart(radar, use_container_width=True, key="motility_radar_overall")
+        radar.add_trace(go.Scatterpolar(r=r_typ + [r_typ[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Typical Patient', fillcolor='rgba(150,150,150,0.20)', line=dict(color='rgba(150,150,150,0.7)', width=2.2, dash='dash'), hovertemplate='<b>Typical</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
+        radar.add_trace(go.Scatterpolar(r=r_curr + [r_curr[0]], theta=metrics_order + [metrics_order[0]], fill='toself', name='Current Patient', fillcolor='rgba(99,110,250,0.45)', line=dict(color='#636EFA', width=2.8), hovertemplate='<b>Current</b><br>%{theta}: %{r:.1f}%<extra></extra>'))
+        radar.update_layout(
+            polar=dict(
+                radialaxis=dict(range=[0, 70], showgrid=False, title_text = None, tickfont=dict(size=10)),
+                angularaxis=dict(tickfont=dict(size=11))
+            ),
+
+            showlegend=True,
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            margin=dict(l=20, r=20, t=60, b=20), height=360
+        )
+        cols_rb = st.columns([1, 1.6])
+        with cols_rb[0]:
+            st.plotly_chart(radar.update_layout(height=320), use_container_width=True, key="motility_radar_overall")
 
         # Stacked horizontal bar (overall)
         metric_colors = {'progressive': '#636EFA', 'vigorous': '#EF553B', 'nonprogressive': '#00CC96', 'immotile': '#FFA15A'}
@@ -490,13 +524,13 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
             bar.add_trace(go.Bar(y=['Your Patient'], x=[current_pct[metric]], orientation='h', name=name, marker_color=metric_colors[metric], text=f"{current_pct[metric]:.1f}%", textposition='inside', textfont=dict(color='white', size=10), showlegend=True))
         for metric, name in zip(metrics_order_l, metric_names):
             bar.add_trace(go.Bar(y=['Typical Patient'], x=[typical_pct[metric]], orientation='h', name=name, marker_color=metric_colors[metric], text=f"{typical_pct[metric]:.1f}%", textposition='inside', textfont=dict(color='white', size=10), showlegend=False, opacity=0.7))
-        bar.update_layout(title="% Breakdown of Motility Types vs. Typical (median)", xaxis_title="Percentage (%)", barmode='stack', height=300, showlegend=True, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), margin=dict(l=20, r=20, t=80, b=20), xaxis=dict(range=[0,100]))
-        st.plotly_chart(bar, use_container_width=True, key="stacked_bar_overall")
+        bar.update_layout(title_text = None, xaxis_title="Percentage (%)", barmode='stack', height=300, showlegend=True, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1), margin=dict(l=20, r=20, t=80, b=20), xaxis=dict(range=[0,100]))
+        with cols_rb[1]:
+            st.plotly_chart(bar.update_layout(height=360), use_container_width=True, key="stacked_bar_overall")
     except Exception as e:
         st.warning(f"⚠️ Could not load metrics comparison: {str(e)}")
     
     # Feature Profile - Bar Charts (with subtype tabs)
-    st.subheader("📈 Feature Values: Current vs Typical (Bar)")
     try:
         typical_profile, features_df = calculate_typical_patient_feature_profile()
         all_features_for_means = ['ALH', 'BCF', 'LIN', 'VCL', 'VSL', 'WOB', 'STR', 'VAP']
@@ -527,6 +561,12 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         group2 = ['STR', 'LIN', 'ALH', 'WOB']
         ymax_a = max(max(overall_current_values.get(f,0), overall_typical_values.get(f,0)) for f in group1) if len(preds) else 1
         ymax_b = max(max(overall_current_values.get(f,0), overall_typical_values.get(f,0)) for f in group2) if len(preds) else 1
+
+        # Explanatory title above tabs
+        st.markdown(
+            "<div style=\"font-weight:600; font-size:1.4rem; line-height:1.4; margin: 8px 0 8px;\">How do the patient's sperm move compared to a typical patient? Choose a subtype below to compare.</div>",
+            unsafe_allow_html=True
+        )
 
         # Tabs by subtype_label (requested)
         tabs_feat = st.tabs(["All", "Progressive", "Vigorous", "Nonprogressive", "Immotile"]) 
@@ -570,7 +610,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                         barmode='group',
                         title='Linearity & Amplitude Features' if subtype_key is None else f"Linearity & Amplitude Features — {subtype_key.title()}",
                         xaxis_title='Feature',
-                        yaxis_title='Value', yaxis=dict(range=[0, 1], showgrid=False), xaxis=dict(showgrid=False),
+                        yaxis_title='Value', yaxis=dict(range=[0, 2], showgrid=False), xaxis=dict(showgrid=False),
                         showlegend=True,
                         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
                         margin=dict(l=10, r=10, t=60, b=20),
