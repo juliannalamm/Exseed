@@ -246,3 +246,4 @@ def get_trajectory(track_id: str, participant_id: str) -> pd.DataFrame:
     except Exception as e:
         print(f"Error reading trajectory data for {participant_id}/{track_id}: {e}")
         return pd.DataFrame(columns=["frame_num", "x", "y"])
+ 

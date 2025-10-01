@@ -5,7 +5,6 @@ from dash import html, Input, Output, dcc
 import plotly.graph_objects as go
 import sys
 import os
-import time
 
 # Add the current directory to Python path for local development
 if __name__ == "__main__":
@@ -38,17 +37,6 @@ app = dash.Dash(
 )
 server = app.server
 
-print(">>> APP LAYOUT: start building")
-t0_layout = time.perf_counter()
-
-# Instrument component creation times
-t0 = time.perf_counter(); _hdr = create_header_component(); print(f">>> BUILD header in {time.perf_counter()-t0:.2f}s")
-t0 = time.perf_counter(); _tsne = create_tsne_component(); print(f">>> BUILD tsne in {time.perf_counter()-t0:.2f}s")
-t0 = time.perf_counter(); _traj = create_tsne_trajectory_component(); print(f">>> BUILD tsne_trajectory in {time.perf_counter()-t0:.2f}s")
-t0 = time.perf_counter(); _metrics = create_cluster_metrics_component(); print(f">>> BUILD cluster_metrics in {time.perf_counter()-t0:.2f}s")
-t0 = time.perf_counter(); _pe_axis = create_pe_axis_component(); print(f">>> BUILD pe_axis in {time.perf_counter()-t0:.2f}s")
-t0 = time.perf_counter(); _clean_cmp = create_clean_comparison_section(); print(f">>> BUILD clean_comparison in {time.perf_counter()-t0:.2f}s")
-
 app.layout = html.Div(
     style={
         "display": "flex",
@@ -60,7 +48,7 @@ app.layout = html.Div(
         "backgroundColor": "black",
     },
     children=[
-        _hdr,
+        create_header_component(),
         # Content area with padding
         html.Div(
             style={
@@ -121,12 +109,12 @@ app.layout = html.Div(
                             },
                             children=[
                                 html.Div([
-                                    html.Div(id="embedding-content", children=_tsne)
+                                    html.Div(id="embedding-content", children=create_tsne_component())
                                 ]),
                                 html.Div(
                                     id="trajectory-content",
                                     children=[
-                                        _traj,
+                                        create_tsne_trajectory_component(),
                                     ],
                                 ),
                             ],
@@ -137,7 +125,7 @@ app.layout = html.Div(
                                 "width": "100%",
                             },
                             children=[
-                                _metrics,
+                                create_cluster_metrics_component(),
                             ],
                         ),
                     ]
@@ -176,7 +164,7 @@ app.layout = html.Div(
                     },
                     children=[
                         html.Div([
-                            html.Div(id="pe-axis-content", children=_pe_axis)
+                            html.Div(id="pe-axis-content", children=create_pe_axis_component())
                         ]),
                         html.Div(
                             id="pe-trajectory-content",
@@ -215,7 +203,7 @@ app.layout = html.Div(
                         "marginTop": "40px",
                     },
                     children=[
-                        _clean_cmp,
+                        create_clean_comparison_section(),
                     ],
                 ),
             ],
