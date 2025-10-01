@@ -26,16 +26,16 @@ def convert_to_h264(input_path: str, output_path: str):
 
 # UI Setup
 st.set_page_config(page_title="Sperm Motility Analyzer", layout="wide")
-st.title("Sperm Motility Analysis Tool")
+st.markdown("<h1 style='text-align: center;'>CASA Analysis Dashboard</h1>", unsafe_allow_html=True)
 
 # Sample data directory
 SAMPLE_DATA_DIR = "sample_data_for_streamlit"
 
 # Available sample participants
 SAMPLE_PARTICIPANTS = {
-    "767ef2ec_v2": "767ef2ec_v2_tracks_with_mot_params.json",
-    "bcb2b5c7_v1": "bcb2b5c7_v1_tracks_with_mot_params.json", 
-    "ef5f3e74_v1": "ef5f3e74_v1_tracks_with_mot_params.json"
+    "Patient 1": "767ef2ec_v2_tracks_with_mot_params.json",
+    "Patient 2": "bcb2b5c7_v1_tracks_with_mot_params.json", 
+    "Patient 3": "ef5f3e74_v1_tracks_with_mot_params.json"
 }
 
 # Clear results button in sidebar
@@ -48,7 +48,7 @@ if st.sidebar.button("🗑️ Clear Results"):
 # =====================
 # 🔹 Main Analysis Interface
 # =====================
-st.subheader("📊 Individual Sperm Motility Analysis")
+
 
 # Participant selection
 col1, col2 = st.columns([2, 1])
@@ -74,25 +74,28 @@ if selected_participant:
         st.success(f"✅ Loaded: {selected_participant}")
         
         # Auto-run analysis for selected participant
-        if 'participant_id' not in st.session_state or st.session_state['participant_id'] != selected_participant:
+        # Extract actual participant ID from filename
+        actual_participant_id = SAMPLE_PARTICIPANTS[selected_participant].replace('_tracks_with_mot_params.json', '')
+        
+        if 'participant_id' not in st.session_state or st.session_state['participant_id'] != actual_participant_id:
             with st.spinner(f"Processing {selected_participant}..."):
                 # Process the data
-                track_df, frame_df = json_to_df(json_path, selected_participant)
+                track_df, frame_df = json_to_df(json_path, actual_participant_id)
                 
                 # Predict subtypes (no UMAP)
                 preds = predict_sperm_motility(track_df, model_path=MODEL_PATH, include_umap=False)
                 
                 # Create output directory
-                out_dir = os.path.join(tempfile.gettempdir(), f"{selected_participant}_outputs")
+                out_dir = os.path.join(tempfile.gettempdir(), f"{actual_participant_id}_outputs")
                 os.makedirs(out_dir, exist_ok=True)
                 
                 # Save predictions
-                preds_csv = os.path.join(out_dir, f"{selected_participant}_predictions.csv")
+                preds_csv = os.path.join(out_dir, f"{actual_participant_id}_predictions.csv")
                 preds.to_csv(preds_csv, index=False)
                 
                 # Overlay trajectories on video
-                raw_overlay_path = os.path.join(out_dir, f"{selected_participant}_raw_overlay.mp4")
-                h264_path = os.path.join(out_dir, f"{selected_participant}_overlay_h264.mp4")
+                raw_overlay_path = os.path.join(out_dir, f"{actual_participant_id}_raw_overlay.mp4")
+                h264_path = os.path.join(out_dir, f"{actual_participant_id}_overlay_h264.mp4")
                 
                 overlay_trajectories_on_video(
                     frame_df=frame_df,
@@ -107,7 +110,7 @@ if selected_participant:
                 st.session_state['frame_df'] = frame_df
                 st.session_state['h264_path'] = h264_path
                 st.session_state['preds_csv'] = preds_csv
-                st.session_state['participant_id'] = selected_participant
+                st.session_state['participant_id'] = actual_participant_id
                 
                 st.rerun()
     else:
