@@ -17,7 +17,6 @@ try:
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from components.header_component import create_header_component
     from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
-    from components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
     from components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
     from components.velocity_component import create_velocity_component, register_velocity_callbacks
 except ImportError:
@@ -27,7 +26,6 @@ except ImportError:
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
     from app.components.header_component import create_header_component
     from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
-    from app.components.archetype_radar_section import create_archetype_radar_section, register_archetype_radar_callbacks
     from app.components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
     from app.components.velocity_component import create_velocity_component, register_velocity_callbacks
 
@@ -408,7 +406,6 @@ app.index_string = '''
 # Register t-SNE callbacks and metrics tabs
 register_tsne_trajectory_callbacks(app)
 register_cluster_metrics_callbacks(app)
-register_archetype_radar_callbacks(app)
 register_clean_comparison_callbacks(app)
 register_velocity_callbacks(app)
 

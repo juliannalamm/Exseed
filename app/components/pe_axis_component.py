@@ -1,6 +1,5 @@
 # P/E axis scatter plot component
-import dash
-from dash import dcc, html, Input, Output, callback_context
+from dash import dcc, html
 import plotly.graph_objects as go
 import sys
 import os
