@@ -119,65 +119,47 @@ def create_velocity_component(component_id="velocity-meters"):
 
 
 def register_velocity_callbacks(app):
-    # Callback for t-SNE velocity component
     @app.callback(
-        Output("tsne-velocity-meters", "children"),
+        [Output("tsne-velocity-meters", "children"),
+         Output("pe-velocity-meters", "children")],
         Input("tsne", "hoverData"),
         Input("tsne", "clickData"),
-        prevent_initial_call=False,
-    )
-    def update_tsne_velocity_rows(hoverData, clickData):
-        ctx = callback_context
-        ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("tsne.clickData")) else hoverData
-        if not ev or "points" not in ev:
-            return _empty_rows()
-
-        p = ev["points"][0]
-        customdata = p.get("customdata")
-        if customdata is None or len(customdata) < 2:
-            return _empty_rows()
-
-        track_id = str(customdata[0])
-        # POINTS uses track_id as string
-        row = POINTS[POINTS["track_id"].astype(str) == track_id]
-        if row.empty:
-            return _empty_rows()
-        r0 = row.iloc[0]
-
-        rows = []
-        for key, label in METRICS:
-            val = r0[key] if key in row.columns else None
-            try:
-                val = float(val) if val is not None else None
-            except Exception:
-                val = None
-            rows.append(_capsule_row(key, key if label is None else key, val))
-
-        return rows
-
-    # Callback for P/E axis velocity component
-    @app.callback(
-        Output("pe-velocity-meters", "children"),
         Input("pe-axis", "hoverData"),
         Input("pe-axis", "clickData"),
         prevent_initial_call=False,
     )
-    def update_pe_velocity_rows(hoverData, clickData):
+    def update_velocity_rows(tsne_hover, tsne_click, pe_hover, pe_click):
         ctx = callback_context
-        ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("pe-axis.clickData")) else hoverData
+        
+        # Determine which event triggered the callback
+        if ctx.triggered:
+            prop_id = ctx.triggered[0]["prop_id"]
+            if prop_id.startswith("tsne.clickData"):
+                ev = tsne_click
+            elif prop_id.startswith("tsne.hoverData"):
+                ev = tsne_hover
+            elif prop_id.startswith("pe-axis.clickData"):
+                ev = pe_click
+            elif prop_id.startswith("pe-axis.hoverData"):
+                ev = pe_hover
+            else:
+                ev = None
+        else:
+            ev = None
+            
         if not ev or "points" not in ev:
-            return _empty_rows()
+            return _empty_rows(), _empty_rows()
 
         p = ev["points"][0]
         customdata = p.get("customdata")
         if customdata is None or len(customdata) < 2:
-            return _empty_rows()
+            return _empty_rows(), _empty_rows()
 
         track_id = str(customdata[0])
         # POINTS uses track_id as string
         row = POINTS[POINTS["track_id"].astype(str) == track_id]
         if row.empty:
-            return _empty_rows()
+            return _empty_rows(), _empty_rows()
         r0 = row.iloc[0]
 
         rows = []
@@ -189,6 +171,6 @@ def register_velocity_callbacks(app):
                 val = None
             rows.append(_capsule_row(key, key if label is None else key, val))
 
-        return rows
+        return rows, rows
 
 
