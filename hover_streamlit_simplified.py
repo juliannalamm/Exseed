@@ -345,7 +345,7 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
             'immotile': "Most of your sperm are not moving",
             'nonprogressive': "Most of your sperm are slow movers - this might lead to poor fertilization outcomes",
             'vigorous': "Your sperm move very quickly, this could lead to positive fertilization outcomes",
-            'progressive': "Your sperm move quickly and in a straight line, this helps the sperm find the egg and can help to positive fertilization outcomes"
+            'progressive': "Your sperm move quickly and in a straight line, this helps the sperm find the egg and can result in positive fertilization outcomes"
         }
         
         # Calculate overall assessment
