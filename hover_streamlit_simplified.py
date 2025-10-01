@@ -215,12 +215,29 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                 percentage = (count / current_total_tracks) * 100
                 current_percentages[subtype] = percentage
             
-            # Define colors and icons for each subtype (matching Dash component colors)
+            # Define colors and inline Lucide SVG icons for each subtype (matching Dash component colors)
+            def lucide_svg(icon_path: str, color_hex: str, size: int = 16) -> str:
+                return f"""
+                <svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color_hex}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    {icon_path}
+                </svg>
+                """.strip()
+            LUCIDE_PATHS = {
+                'fast-forward': '<polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/>',
+                'zap': '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+                'move': '<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>',
+                'pause-circle': '<circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/>',
+                'turtle': '<path d="m12 10 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a8 8 0 1 0-16 0v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3l2-4h4Z"/><path d="M4.82 7.9 8 10"/><path d="M15.18 7.9 12 10"/><path d="M16.93 10H20a2 2 0 0 1 0 4H2"/>',
+                'smile': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+                'meh': '<circle cx="12" cy="12" r="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+                'frown': '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'
+            }
+
             subtype_info = {
-                'progressive': {'color': '#636EFA', 'icon': '🔵', 'name': 'Progressive'},
-                'vigorous': {'color': '#EF553B', 'icon': '🔴', 'name': 'Vigorous'},
-                'nonprogressive': {'color': '#00CC96', 'icon': '🟢', 'name': 'Nonprogressive'},
-                'immotile': {'color': '#FFA15A', 'icon': '🟠', 'name': 'Immotile'}
+                'progressive': {'color': '#636EFA', 'icon_svg': lucide_svg(LUCIDE_PATHS['fast-forward'], '#636EFA', 24), 'name': 'Progressive'},
+                'vigorous': {'color': '#EF553B', 'icon_svg': lucide_svg(LUCIDE_PATHS['zap'], '#EF553B', 24), 'name': 'Vigorous'},
+                'nonprogressive': {'color': '#00CC96', 'icon_svg': lucide_svg(LUCIDE_PATHS['turtle'], '#00CC96', 24), 'name': 'Nonprogressive'},
+                'immotile': {'color': '#FFA15A', 'icon_svg': lucide_svg(LUCIDE_PATHS['pause-circle'], '#FFA15A', 24), 'name': 'Immotile'}
             }
             
             # Create overview cards (stacked vertically)
@@ -233,44 +250,40 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
                 if subtype in ['progressive', 'vigorous']:
                     # Higher is better
                     if difference > 0:
-                        status = "📈 Above Typical"
+                        status = "Above Typical"
                         status_color = "#2ca02c"
                     else:
-                        status = "📉 Below Typical"
+                        status = "Below Typical"
                         status_color = "#d62728"
                 else:
                     # Lower is better
                     if difference < 0:
-                        status = "📈 Better Than Typical"
+                        status = "Better Than Typical"
                         status_color = "#2ca02c"
                     else:
-                        status = "📉 Above Typical"
+                        status = "Above Typical"
                         status_color = "#d62728"
                 
                 st.markdown(f"""
                 <div style="
                     background: linear-gradient(135deg, {info['color']}20, {info['color']}10);
                     border: 2px solid {info['color']};
-                    border-radius: 8px;
-                    padding: 6px;
-                    text-align: center;
-                    margin: 3px 0;
+                    border-radius: 10px;
+                    padding: 8px;
+                    margin: 4px 0;
                 ">
-                    <h4 style="margin: 0; color: {info['color']}; font-size: 16px;">
-                        {info['icon']} {info['name']}
-                    </h4>
-                    <h3 style="margin: 2px 0; color: {info['color']}; font-size: 24px;">
-                        {current_pct:.1f}%
-                    </h3>
-                    <p style="margin: 1px 0; color: #666; font-size: 11px;">
-                        vs {typical_pct:.1f}% typical
-                    </p>
-                    <p style="margin: 1px 0; color: {status_color}; font-weight: bold; font-size: 12px;">
-                        {status}
-                    </p>
-                    <p style="margin: 1px 0; color: {info['color']}; font-weight: bold; font-size: 13px;">
-                        {difference:+.1f}%
-                    </p>
+                    <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                        <div>{info['icon_svg']}</div>
+                        <div style="color: {info['color']}; font-weight: 600; font-size: 14px;">{info['name']}</div>
+                    </div>
+                    <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-top: 6px;">
+                        <div style="color: {info['color']}; font-size: 22px; font-weight: 700;">{current_pct:.1f}%</div>
+                        <div style="color: #666; font-size: 11px;">vs {typical_pct:.1f}% typical</div>
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 10px; margin-top: 6px;">
+                        <div style="color: {status_color}; font-size: 12px; font-weight: 600;">{status}</div>
+                        <div style="color: {info['color']}; font-size: 12px; font-weight: 600;">{difference:+.1f}%</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -332,22 +345,23 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
         for subtype in ['progressive', 'vigorous']:
             if current_percentages[subtype] > subtype_percentages[subtype]:
                 good_differences += 1
-            total_differences += 1
-        
-        for subtype in ['nonprogressive', 'immotile']:
+        for subtype in ['immotile', 'nonprogressive']:
             if current_percentages[subtype] < subtype_percentages[subtype]:
                 good_differences += 1
-            total_differences += 1
-        
+                
+        # Determine status, color, and icon
         if good_differences >= 3:
-            overall_status = "🟢 Excellent - Above average motility profile"
+            overall_status = "Excellent - Above average motility profile"
             status_color = "#2ca02c"
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['smile'], status_color, 20)
         elif good_differences >= 2:
-            overall_status = "🟡 Good - Mixed motility profile"
+            overall_status = "Good - Mixed motility profile"
             status_color = "#ff7f0e"
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['meh'], status_color, 20)
         else:
-            overall_status = "🔴 Below Average - Lower motility profile"
+            overall_status = "Below Average - Lower motility profile"
             status_color = "#d62728"
+            status_icon_svg = lucide_svg(LUCIDE_PATHS['frown'], status_color, 20)
         
         st.markdown(f"""
         <div style="
@@ -358,23 +372,24 @@ if 'preds' in st.session_state and 'frame_df' in st.session_state:
             text-align: center;
             margin: 4px 0;
         ">
-            <h4 style="margin: 0; color: {status_color}; font-size: 22px;">
-                Overall Assessment
+            <h4 style="margin: 0; color: {status_color}; font-size: 22px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <span>Overall Assessment</span>
             </h4>
-            <p style="margin: 2px 0; color: {status_color}; font-size: 20px;">
-                {overall_status}
+            <p style="margin: 4px 0; color: {status_color}; font-size: 18px; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <span>{status_icon_svg}</span>
+                <span>{overall_status}</span>
             </p>
             <div style="
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 4px;
-                padding: 4px;
-                margin: 4px 0;
-                border: 1px solid rgba(0, 0, 0, 0.2);
+                background: linear-gradient(135deg, {status_color}22, {status_color}10);
+                border-radius: 6px;
+                padding: 6px;
+                margin: 6px 0;
+                border: 1px solid {status_color}55;
             ">
-                <p style="margin: 0; color: #000000; font-size: 18px; font-weight: bold;">
+                <p style="margin: 0; color: #0f172a; font-size: 16px; font-weight: 600;">
                     {dominant_type.title()} ({dominant_percentage:.1f}%)
                 </p>
-                <p style="margin: 2px 0; color: #333333; font-size: 16px; font-style: italic;">
+                <p style="margin: 2px 0; color: #111827; font-size: 14px;">
                     {dominant_messages[dominant_type]}
                 </p>
             </div>
