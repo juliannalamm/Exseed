@@ -208,7 +208,7 @@ def _create_track_figure(participant_id: str, track_id: str, color: str = "#636E
     return fig
 
 
-def create_cluster_metrics_component():
+def create_cluster_metrics_component(component_id="metrics-tabs", description_id="motility-description", cluster_id="cluster-metrics", track_id="track-display"):
     options = [
         ("progressive", "Progressive"),
         ("rapid_progressive", "Rapid Progressive"),
@@ -225,7 +225,7 @@ def create_cluster_metrics_component():
                 style={"backgroundColor": "transparent"},
                 children=[
                     dcc.Tabs(
-                        id="metrics-tabs",
+                        id=component_id,
                         value=options[0][0],
                         colors={
                             "border": "rgba(99, 110, 250, 0.3)",
@@ -264,7 +264,7 @@ def create_cluster_metrics_component():
             ),
             # Description box
             html.Div(
-                id="motility-description",
+                id=description_id,
                 style={
                     "backgroundColor": "rgba(99, 110, 250, 0.15)",
                     "padding": "16px 20px",
@@ -296,7 +296,7 @@ def create_cluster_metrics_component():
                 children=[
                     # Left side: Kinematic chart
                     html.Div(
-                        dcc.Graph(id="cluster-metrics", style={"height": "300px"}),
+                        dcc.Graph(id=cluster_id, style={"height": "300px"}),
                         style={
                             "backgroundColor": "#1a1a1a",
                             "borderRadius": "12px",
@@ -309,7 +309,7 @@ def create_cluster_metrics_component():
                         [
                             html.Div("Example Track", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center", "paddingTop": "8px"}),
                             dcc.Graph(
-                                id="track-display",
+                                id=track_id,
                                 style={"height": "300px"},
                                 config={"responsive": False},
                                 figure=_create_track_figure("142", "142", color=SUBTYPE_COLORS["progressive"])
@@ -331,14 +331,32 @@ def create_cluster_metrics_component():
 def register_cluster_metrics_callbacks(app):
     @app.callback(
         [
-            Output("cluster-metrics", "figure"), 
-            Output("track-display", "figure"),
-            Output("motility-description", "children")
+            Output("cluster-metrics-motility", "figure"), 
+            Output("track-display-motility", "figure"),
+            Output("motility-description-motility", "children"),
+            Output("cluster-metrics-drug", "figure"), 
+            Output("track-display-drug", "figure"),
+            Output("motility-description-drug", "children")
         ],
-        Input("metrics-tabs", "value"),
+        Input("metrics-tabs-motility", "value"),
+        Input("metrics-tabs-drug", "value"),
         prevent_initial_call=False,
     )
-    def update_metrics(active_subtype):
+    def update_metrics(motility_subtype, drug_subtype):
+        # Determine which tab was triggered
+        from dash import callback_context
+        ctx = callback_context
+        if ctx.triggered:
+            prop_id = ctx.triggered[0]["prop_id"]
+            if prop_id.startswith("metrics-tabs-motility"):
+                active_subtype = motility_subtype
+            elif prop_id.startswith("metrics-tabs-drug"):
+                active_subtype = drug_subtype
+            else:
+                active_subtype = motility_subtype  # default to motility
+        else:
+            active_subtype = motility_subtype  # default to motility
+        
         # Get color for this subtype
         subtype_color = SUBTYPE_COLORS.get(active_subtype, "#636EFA")
         
@@ -419,6 +437,7 @@ def register_cluster_metrics_callbacks(app):
             }
         )
         
-        return fig, track_fig, description
+        # Return the same values for both tabs (they'll be updated independently)
+        return fig, track_fig, description, fig, track_fig, description
 
 

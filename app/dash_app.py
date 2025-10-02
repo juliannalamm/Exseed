@@ -15,6 +15,8 @@ try:
     from components.tsne_component import create_tsne_component
     from components.pe_axis_component import create_pe_axis_component
     from components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
+    from components.tsne_drug_component import create_tsne_drug_component
+    from components.tsne_trajectory_drug_component import create_tsne_trajectory_drug_component, register_tsne_trajectory_drug_callbacks
     from components.header_component import create_header_component
     from components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
     from components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
@@ -24,6 +26,8 @@ except ImportError:
     from app.components.tsne_component import create_tsne_component
     from app.components.pe_axis_component import create_pe_axis_component
     from app.components.tsne_trajectory_component import create_tsne_trajectory_component, register_tsne_trajectory_callbacks
+    from app.components.tsne_drug_component import create_tsne_drug_component
+    from app.components.tsne_trajectory_drug_component import create_tsne_trajectory_drug_component, register_tsne_trajectory_drug_callbacks
     from app.components.header_component import create_header_component
     from app.components.cluster_metrics_component import create_cluster_metrics_component, register_cluster_metrics_callbacks
     from app.components.clean_comparison_component import create_clean_comparison_section, register_clean_comparison_callbacks
@@ -89,47 +93,123 @@ app.layout = html.Div(
                         "padding": "0 20px"
                     }
                 ),
-                # Container card for cell-level exploration
-                html.Div(
-                    style={
-                        "backgroundColor": "rgba(26,26,26,0.5)",
-                        "borderRadius": "12px",
-                        "padding": "20px",
-                        "border": "1px solid rgba(99,110,250,0.3)",
-                    },
-                    children=[
-                        # First row: t-SNE chart and trajectory chart side by side
-                        html.Div(
-                            style={
-                                "display": "grid",
-                                "gridTemplateColumns": "2fr 1fr",
-                                "gap": "20px",
-                                "alignItems": "center",
-                                "marginBottom": "20px",
-                            },
+                # Tabs for different views
+                dbc.Tabs(
+                    [
+                        dbc.Tab(
+                            label="Motility Types",
+                            tab_id="motility-tab",
                             children=[
-                                html.Div([
-                                    html.Div(id="embedding-content", children=create_tsne_component())
-                                ]),
+                                # Container card for cell-level exploration
                                 html.Div(
-                                    id="trajectory-content",
+                                    style={
+                                        "backgroundColor": "rgba(26,26,26,0.5)",
+                                        "borderRadius": "12px",
+                                        "padding": "20px",
+                                        "border": "1px solid rgba(99,110,250,0.3)",
+                                    },
                                     children=[
-                                        create_tsne_trajectory_component(),
-                                    ],
+                                        # First row: t-SNE chart and trajectory chart side by side
+                                        html.Div(
+                                            style={
+                                                "display": "grid",
+                                                "gridTemplateColumns": "2fr 1fr",
+                                                "gap": "20px",
+                                                "alignItems": "center",
+                                                "marginBottom": "20px",
+                                            },
+                                            children=[
+                                                html.Div([
+                                                    html.Div(id="embedding-content", children=create_tsne_component())
+                                                ]),
+                                                html.Div(
+                                                    id="trajectory-content",
+                                                    style={"width": "100%", "maxWidth": "100%", "overflow": "hidden"},
+                                                    children=[
+                                                        create_tsne_trajectory_component(),
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                        # Second row: Kinematic metrics tabs
+                                        html.Div(
+                                            style={
+                                                "width": "100%",
+                                                "marginTop": "40px",
+                                            },
+                                            children=[
+                                                create_cluster_metrics_component(
+                                                    component_id="metrics-tabs-motility",
+                                                    description_id="motility-description-motility",
+                                                    cluster_id="cluster-metrics-motility",
+                                                    track_id="track-display-motility"
+                                                ),
+                                            ],
+                                        ),
+                                    ]
                                 ),
-                            ],
+                            ]
                         ),
-                        # Second row: Kinematic metrics tabs
-                        html.Div(
-                            style={
-                                "width": "100%",
-                                "marginTop": "40px",
-                            },
+                        dbc.Tab(
+                            label="Drug Treatment",
+                            tab_id="drug-tab",
                             children=[
-                                create_cluster_metrics_component(),
-                            ],
+                                # Container card for drug-colored exploration
+                                html.Div(
+                                    style={
+                                        "backgroundColor": "rgba(26,26,26,0.5)",
+                                        "borderRadius": "12px",
+                                        "padding": "20px",
+                                        "border": "1px solid rgba(99,110,250,0.3)",
+                                    },
+                                    children=[
+                                        # First row: t-SNE chart and trajectory chart side by side
+                                        html.Div(
+                                            style={
+                                                "display": "grid",
+                                                "gridTemplateColumns": "2fr 1fr",
+                                                "gap": "20px",
+                                                "alignItems": "center",
+                                                "marginBottom": "20px",
+                                                "width": "100%",
+                                                "maxWidth": "100%",
+                                            },
+                                            children=[
+                                                html.Div([
+                                                    html.Div(id="embedding-drug-content", children=create_tsne_drug_component())
+                                                ]),
+                                                html.Div(
+                                                    id="trajectory-drug-content",
+                                                    style={"width": "100%", "maxWidth": "100%", "overflow": "hidden"},
+                                                    children=[
+                                                        create_tsne_trajectory_drug_component(),
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                        # Second row: Kinematic metrics tabs (same as motility tab)
+                                        html.Div(
+                                            style={
+                                                "width": "100%",
+                                                "marginTop": "40px",
+                                            },
+                                            children=[
+                                                create_cluster_metrics_component(
+                                                    component_id="metrics-tabs-drug",
+                                                    description_id="motility-description-drug",
+                                                    cluster_id="cluster-metrics-drug",
+                                                    track_id="track-display-drug"
+                                                ),
+                                            ],
+                                        ),
+                                    ]
+                                ),
+                            ]
                         ),
-                    ]
+                    ],
+                    id="main-tabs",
+                    active_tab="motility-tab",
+                    style={"marginBottom": "20px"}
                 ),
                 # Section header for P/E axis
                 html.Div(
@@ -405,6 +485,7 @@ app.index_string = '''
 
 # Register t-SNE callbacks and metrics tabs
 register_tsne_trajectory_callbacks(app)
+register_tsne_trajectory_drug_callbacks(app)
 register_cluster_metrics_callbacks(app)
 register_clean_comparison_callbacks(app)
 register_velocity_callbacks(app)

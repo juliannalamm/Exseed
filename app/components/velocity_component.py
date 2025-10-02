@@ -118,14 +118,17 @@ def create_velocity_component(component_id="velocity-meters"):
 def register_velocity_callbacks(app):
     @app.callback(
         [Output("tsne-velocity-meters", "children"),
+         Output("tsne-velocity-meters-drug", "children"),
          Output("pe-velocity-meters", "children")],
         Input("tsne", "hoverData"),
         Input("tsne", "clickData"),
+        Input("tsne-drug", "hoverData"),
+        Input("tsne-drug", "clickData"),
         Input("pe-axis", "hoverData"),
         Input("pe-axis", "clickData"),
         prevent_initial_call=False,
     )
-    def update_velocity_rows(tsne_hover, tsne_click, pe_hover, pe_click):
+    def update_velocity_rows(tsne_hover, tsne_click, tsne_drug_hover, tsne_drug_click, pe_hover, pe_click):
         ctx = callback_context
         
         # Determine which event triggered the callback
@@ -135,6 +138,10 @@ def register_velocity_callbacks(app):
                 ev = tsne_click
             elif prop_id.startswith("tsne.hoverData"):
                 ev = tsne_hover
+            elif prop_id.startswith("tsne-drug.clickData"):
+                ev = tsne_drug_click
+            elif prop_id.startswith("tsne-drug.hoverData"):
+                ev = tsne_drug_hover
             elif prop_id.startswith("pe-axis.clickData"):
                 ev = pe_click
             elif prop_id.startswith("pe-axis.hoverData"):
@@ -145,18 +152,18 @@ def register_velocity_callbacks(app):
             ev = None
             
         if not ev or "points" not in ev:
-            return _empty_rows(), _empty_rows()
+            return _empty_rows(), _empty_rows(), _empty_rows()
 
         p = ev["points"][0]
         customdata = p.get("customdata")
         if customdata is None or len(customdata) < 2:
-            return _empty_rows(), _empty_rows()
+            return _empty_rows(), _empty_rows(), _empty_rows()
 
         track_id = str(customdata[0])
         # POINTS uses track_id as string
         row = POINTS[POINTS["track_id"].astype(str) == track_id]
         if row.empty:
-            return _empty_rows(), _empty_rows()
+            return _empty_rows(), _empty_rows(), _empty_rows()
         r0 = row.iloc[0]
 
         rows = []
@@ -168,6 +175,6 @@ def register_velocity_callbacks(app):
                 val = None
             rows.append(_capsule_row(key, label, val, units))
 
-        return rows, rows
+        return rows, rows, rows
 
 

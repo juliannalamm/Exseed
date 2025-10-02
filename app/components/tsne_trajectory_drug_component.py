@@ -1,29 +1,19 @@
-# t-SNE trajectory viewer component
+# t-SNE trajectory component for drug-colored view
 import dash
-from dash import dcc, html, Input, Output, callback_context
+from dash import dcc, html, Input, Output, callback, callback_context
 import plotly.graph_objects as go
-import numpy as np
 import sys
 import os
 
 # Handle imports for both local development and container
 try:
-    from ..datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP, POINTS
+    from ..datastore import POINTS, get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED
 except ImportError:
     # For local development
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from datastore import get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED, MIN_VIEW_HALF, AUTO_PAD, HALF_LOOKUP, POINTS
+    from datastore import POINTS, get_trajectory, CENTER_LOOKUP, VIEW_HALF_FIXED
 
-# Color mapping for each motility type (matches t-SNE plot colors)
-SUBTYPE_COLORS = {
-    "progressive": "#636EFA",      # blue (Plotly default color 0)
-    "rapid_progressive": "#EF553B", # red (Plotly default color 1)
-    "non_progressive": "#00CC96",   # teal/green (Plotly default color 2)
-    "erratic": "#AB63FA",           # purple (Plotly default color 3)
-    "immotile": "#FFA15A"           # orange (Plotly default color 4)
-}
-
-def trajectory_fig_centered(traj, center, color="#636EFA"):
+def trajectory_fig_centered_drug(traj, center, color="#636EFA"):
     """
     Center the track by subtracting its bbox center (or precomputed center).
     Uses a fixed compare field-of-view (no view mode, no title).
@@ -61,14 +51,14 @@ def trajectory_fig_centered(traj, center, color="#636EFA"):
 
     fig.update_layout(
         margin=dict(l=10, r=10, t=40, b=10),
-        uirevision="traj-static",
+        uirevision="traj-drug-static",
         paper_bgcolor="rgba(26,26,26,0.5)",  # Match card background
         plot_bgcolor="rgba(26,26,26,0.5)",  # Match card background
         showlegend=False,
     )
     return fig
 
-def get_default_trajectory():
+def get_default_trajectory_drug():
     """Get the first available trajectory for initial display"""
     if POINTS.empty:
         return go.Figure().update_layout(
@@ -87,10 +77,10 @@ def get_default_trajectory():
     traj = get_trajectory(track_id, participant_id)
     center = CENTER_LOOKUP.get((participant_id, track_id))
     
-    return trajectory_fig_centered(traj, center)
+    return trajectory_fig_centered_drug(traj, center)
 
-def create_tsne_trajectory_component():
-    """Create the t-SNE trajectory viewer component with integrated velocity component."""
+def create_tsne_trajectory_drug_component():
+    """Create the t-SNE trajectory component for drug view with integrated velocity component."""
     # Import velocity component here to avoid circular imports
     try:
         from .velocity_component import create_velocity_component
@@ -105,6 +95,8 @@ def create_tsne_trajectory_component():
             "height": "100%",
             "width": "100%",
             "maxWidth": "100%",
+            "boxSizing": "border-box",
+            "overflow": "hidden",
         },
         children=[
             html.Div("Sperm Trajectory", style={"marginBottom": "8px", "fontSize": "14px", "color": "white", "fontWeight": "600", "textAlign": "center"}),
@@ -116,35 +108,36 @@ def create_tsne_trajectory_component():
                     "overflow": "hidden",
                     "boxShadow": "0 4px 6px rgba(0, 0, 0, 0.1)",
                     "width": "100%",
-                    "maxWidth": "100%"
+                    "maxWidth": "100%",
+                    "boxSizing": "border-box",
                 },
                 children=[
                     # Trajectory graph (no separate card styling)
                     dcc.Graph(
-                        id="tsne-traj-view",
+                        id="tsne-traj-view-drug",
                         style={"height": "320px", "width": "100%", "maxWidth": "100%"},
                         config={"responsive": False},
-                        figure=get_default_trajectory()
+                        figure=get_default_trajectory_drug()
                     ),
                     # Velocity component integrated at the bottom
-                    create_velocity_component("tsne-velocity-meters"),
+                    create_velocity_component("tsne-velocity-meters-drug"),
                 ]
             ),
         ]
     )
 
-def register_tsne_trajectory_callbacks(app):
-    """Register the t-SNE trajectory viewer callbacks"""
+def register_tsne_trajectory_drug_callbacks(app):
+    """Register the drug t-SNE trajectory viewer callbacks"""
     @app.callback(
-        Output("tsne-traj-view", "figure"),
-        Input("tsne", "hoverData"),
-        Input("tsne", "clickData"),
+        Output("tsne-traj-view-drug", "figure"),
+        Input("tsne-drug", "hoverData"),
+        Input("tsne-drug", "clickData"),
         prevent_initial_call=True,
     )
-    def update_tsne_traj_view(hoverData, clickData):
+    def update_tsne_traj_view_drug(hoverData, clickData):
         # Prefer click over hover to reduce disk reads; change if you want hover-first
         ctx = callback_context
-        ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("tsne.clickData")) else hoverData
+        ev = clickData if (ctx.triggered and ctx.triggered[0]["prop_id"].startswith("tsne-drug.clickData")) else hoverData
         if not ev or "points" not in ev:
             raise dash.exceptions.PreventUpdate
 
@@ -152,9 +145,32 @@ def register_tsne_trajectory_callbacks(app):
         customdata = p["customdata"]
         track_id, participant_id, klass = customdata[0], customdata[1], customdata[2]
         
-        # Get the color for this subtype
-        subtype_color = SUBTYPE_COLORS.get(klass, "#636EFA")
+        # Get the drug color based on the drug ID
+        drug_id = customdata[4] if len(customdata) > 4 else None
+        drug_colors = [
+            "#636EFA",  # blue
+            "#EF553B",  # red  
+            "#00CC96",  # teal/green
+            "#AB63FA",  # purple
+            "#FFA15A",  # orange
+            "#19D3F3",  # cyan
+            "#FF6692",  # pink
+            "#B6E880",  # light green
+            "#FF97FF",  # magenta
+            "#FECB52"   # yellow
+        ]
+        
+        # Get unique drug IDs to find the index
+        if "experiment_media" in POINTS.columns:
+            unique_drugs = sorted(POINTS["experiment_media"].unique())
+            try:
+                drug_index = unique_drugs.index(drug_id)
+                subtype_color = drug_colors[drug_index % len(drug_colors)]
+            except (ValueError, TypeError):
+                subtype_color = "#636EFA"  # default blue
+        else:
+            subtype_color = "#636EFA"  # default blue
 
         traj = get_trajectory(track_id, participant_id)
         center = CENTER_LOOKUP.get((participant_id, track_id))  # may be None; handled inside
-        return trajectory_fig_centered(traj, center, color=subtype_color)
+        return trajectory_fig_centered_drug(traj, center, color=subtype_color)
