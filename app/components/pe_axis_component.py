@@ -43,8 +43,13 @@ def create_pe_axis_figure():
                     mode="markers",
                     marker=dict(size=4, opacity=0.75, color=color),
                     name=str(subtype).replace('_', ' ').title(),  # Legend label
-                    customdata=POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values,
-                    hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br><extra></extra>")
+                    customdata=(POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse","experiment_media"]].values 
+                               if "experiment_media" in POINTS.columns 
+                               else POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values),
+                    hovertemplate=("<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br>" + 
+                                 ("<b>Drug:</b> %{customdata[5]}<br>" if "experiment_media" in POINTS.columns else "") + 
+                                 "<extra></extra>")
+                )
             )
     
     # Then add all hyperactive points as a single trace
@@ -64,7 +69,10 @@ def create_pe_axis_figure():
                 all_hyperactive_x.extend(POINTS.loc[subtype_hyperactive_mask, "P_axis_byls"].tolist())
                 all_hyperactive_y.extend(POINTS.loc[subtype_hyperactive_mask, "E_axis_byls"].tolist())
                 all_hyperactive_colors.extend([color] * subtype_hyperactive_mask.sum())
-                all_hyperactive_customdata.extend(POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values.tolist())
+                if "experiment_media" in POINTS.columns:
+                    all_hyperactive_customdata.extend(POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse","experiment_media"]].values.tolist())
+                else:
+                    all_hyperactive_customdata.extend(POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","entropy","is_hyperactive_mouse"]].values.tolist())
         
         # Add glow layer for all hyperactive points
         fig.add_trace(
@@ -99,7 +107,10 @@ def create_pe_axis_figure():
                 name="",  # No separate legend entry - controlled by glow layer
                 showlegend=False,
                 customdata=all_hyperactive_customdata,
-                hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br><b>Hyperactive:</b> Yes<br><extra></extra>")
+                hovertemplate=("<b>Class:</b> %{customdata[2]}<br><b>Cluster Uncertainty:</b> %{customdata[3]:.3f}<br><b>Hyperactive:</b> Yes<br>" + 
+                             ("<b>Drug:</b> %{customdata[5]}<br>" if "experiment_media" in POINTS.columns else "") + 
+                             "<extra></extra>")
+            )
         )
     
     fig.update_layout(

@@ -93,6 +93,9 @@ try:
         _df["track_id"] = _df["fid"].astype(str)
         _df["participant_id"] = _df["fid"].astype(str)
     wanted = [c for c in BASE_COLUMNS + KINEMATIC_FEATURES + AXIS_FEATURES + ["track_id", "participant_id"] if c in _df.columns]
+    # Opportunistically include experiment_media if present (for hover drug id) without changing BASE_COLUMNS wiring
+    if "experiment_media" in _df.columns and "experiment_media" not in wanted:
+        wanted.append("experiment_media")
     if not wanted:
         raise ValueError("No expected columns found in CSV")
     POINTS = _df[wanted].copy()

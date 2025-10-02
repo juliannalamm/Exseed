@@ -43,8 +43,13 @@ def create_tsne_figure():
                     mode="markers",
                     marker=dict(size=4, opacity=0.75, color=color),
                     name=str(subtype).replace('_', ' ').title(),  # Legend label
-                    customdata=POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values,
-                    hovertemplate="<b>Class:</b> %{customdata[2]}<br><extra></extra>")
+                    customdata=(POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse","experiment_media"]].values 
+                               if "experiment_media" in POINTS.columns 
+                               else POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values),
+                    hovertemplate=("<b>Class:</b> %{customdata[2]}<br>" + 
+                                 ("<b>Drug:</b> %{customdata[4]}<br>" if "experiment_media" in POINTS.columns else "") + 
+                                 "<extra></extra>")
+                )
             )
     
     # Add hyperactive points as regular points (no special glow) - they'll be shown in P/E plot
@@ -62,8 +67,13 @@ def create_tsne_figure():
                         marker=dict(size=4, opacity=0.75, color=color),
                         name="",  # No separate legend entry - they're just regular cluster points
                         showlegend=False,
-                        customdata=POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values,
-                        hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Hyperactive:</b> Yes<br><extra></extra>")
+                        customdata=(POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse","experiment_media"]].values 
+                                   if "experiment_media" in POINTS.columns 
+                                   else POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values),
+                        hovertemplate=("<b>Class:</b> %{customdata[2]}<br><b>Hyperactive:</b> Yes<br>" + 
+                                     ("<b>Drug:</b> %{customdata[4]}<br>" if "experiment_media" in POINTS.columns else "") + 
+                                     "<extra></extra>")
+                    )
                 )
     
     fig.update_layout(
