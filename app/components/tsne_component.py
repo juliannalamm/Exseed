@@ -28,6 +28,7 @@ def create_tsne_figure():
     
     fig = go.Figure()
     
+    # First, add all regular points grouped by cluster
     for i, subtype in enumerate(unique_subtypes):
         mask = POINTS["subtype_label"] == subtype
         color = SUBTYPE_COLORS.get(subtype, "#636EFA")  # Default to blue if not found
@@ -45,61 +46,25 @@ def create_tsne_figure():
                     customdata=POINTS.loc[regular_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values,
                     hovertemplate="<b>Class:</b> %{customdata[2]}<br><extra></extra>")
             )
-        
-        # Hyperactive points with glow effect
-        hyperactive_mask = mask & (POINTS["is_hyperactive_mouse"] == 1)
-        if hyperactive_mask.any():
-            # Add glow layer (smaller, more radiant)
-            fig.add_trace(
-                go.Scattergl(
-                    x=POINTS.loc[hyperactive_mask, "tsne_1"], 
-                    y=POINTS.loc[hyperactive_mask, "tsne_2"],
-                    mode="markers",
-                    marker=dict(
-                        size=6,  # Smaller size
-                        opacity=0.4,  # More opaque for radiance
-                        color="#fff8dc",  # Softer, more radiant golden color
-                        line=dict(width=0)
-                    ),
-                    name="",  # No legend entry for glow
-                    showlegend=False,
-                    hoverinfo="skip"  # Skip hover for glow layer
-                )
-            )
-            # Add main hyperactive points (use same cluster color)
-            fig.add_trace(
-                go.Scattergl(
-                    x=POINTS.loc[hyperactive_mask, "tsne_1"], 
-                    y=POINTS.loc[hyperactive_mask, "tsne_2"],
-                    mode="markers",
-                    marker=dict(
-                        size=4, 
-                        opacity=0.9,
-                        color=color,  # Use same cluster color
-                        line=dict(width=1, color="#ffd700")  # Thinner golden border for hyperactive
-                    ),
-                    name="",  # No legend entry for individual hyperactive traces
-                    showlegend=False,
-                    customdata=POINTS.loc[hyperactive_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values,
-                    hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Hyperactive:</b> Yes<br><extra></extra>")
-            )
     
-    # Add a single "Hyperactive" legend entry if there are any hyperactive points
-    if (POINTS["is_hyperactive_mouse"] == 1).any():
-        fig.add_trace(
-            go.Scattergl(
-                x=[None], y=[None],  # Invisible trace
-                mode="markers",
-                marker=dict(
-                    size=4,
-                    color="#636EFA",  # Use a default color for the legend
-                    line=dict(width=1, color="#ffd700")  # Thinner golden border
-                ),
-                name="Hyperactive",
-                showlegend=True,
-                hoverinfo="skip"
-            )
-        )
+    # Add hyperactive points as regular points (no special glow) - they'll be shown in P/E plot
+    hyperactive_mask = POINTS["is_hyperactive_mouse"] == 1
+    if hyperactive_mask.any():
+        for i, subtype in enumerate(unique_subtypes):
+            subtype_hyperactive_mask = hyperactive_mask & (POINTS["subtype_label"] == subtype)
+            if subtype_hyperactive_mask.any():
+                color = SUBTYPE_COLORS.get(subtype, "#636EFA")
+                fig.add_trace(
+                    go.Scattergl(
+                        x=POINTS.loc[subtype_hyperactive_mask, "tsne_1"], 
+                        y=POINTS.loc[subtype_hyperactive_mask, "tsne_2"],
+                        mode="markers",
+                        marker=dict(size=4, opacity=0.75, color=color),
+                        name="",  # No separate legend entry - they're just regular cluster points
+                        showlegend=False,
+                        customdata=POINTS.loc[subtype_hyperactive_mask, ["track_id","participant_id","subtype_label","is_hyperactive_mouse"]].values,
+                        hovertemplate="<b>Class:</b> %{customdata[2]}<br><b>Hyperactive:</b> Yes<br><extra></extra>")
+                )
     
     fig.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
